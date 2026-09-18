@@ -1242,7 +1242,7 @@ local function inferCls(e)
 end
 
 -- ============================================================
--- scanBinds — FIXED
+-- scanBinds
 -- LocalStatement.names = { {name=..., line=...} }  (bukan Name node)
 -- AssignmentStatement.targets = { NameNode, ... }  (Name node asli)
 -- ============================================================
@@ -1274,6 +1274,9 @@ local function scanBinds(tree)
   return b
 end
 
+-- ============================================================
+-- Enrichment
+-- ============================================================
 local function enrichMember(n, b)
   if n.type ~= "MemberExpression" then return end
   if not n.object or n.object.type ~= "Name" then return end
@@ -1283,7 +1286,9 @@ local function enrichMember(n, b)
   if n.colon then
     info = LLX.Method(bd.class, n.property) or LLX.Event(bd.class, n.property)
   else
-    info = LLX.Prop(bd.class, n.property) or LLX.Method(bd.class, n.property)
+    info = LLX.Prop(bd.class, n.property)
+        or LLX.Event(bd.class, n.property)
+        or LLX.Method(bd.class, n.property)
   end
   if info then
     n.lua = info
@@ -1300,19 +1305,23 @@ local function enrichCall(n, b)
   if not c.object or c.object.type ~= "Name" then return end
   local bd = b[c.object.val]
   if not bd then return end
-  local info = c.lua or LLX.Method(bd.class, c.property)
-  if info then
-    n.lua = {
-      kind = "call",
-      cls  = bd.class,
-      name = c.property,
-      sig  = info.sig,
-      args = n.args,
-      owner = c.object.val,
-      via  = bd.via,
-      src  = "LuaLib",
-    }
+  -- Skip kalau callee-nya udah di-tag sebagai event (biar gak duplicate)
+  local info = c.lua
+  if info and info.kind == "event" then return end
+  if not info then
+    info = LLX.Method(bd.class, c.property)
+    if not info then return end
   end
+  n.lua = {
+    kind = "call",
+    cls  = bd.class,
+    name = c.property,
+    sig  = info.sig,
+    args = n.args,
+    owner = c.object.val,
+    via  = bd.via,
+    src  = "LuaLib",
+  }
 end
 
 local function enrichEnum(n)
@@ -1427,6 +1436,10 @@ function M.annotate(tree)
       if n.lua.name then tag = tag .. ":" .. n.lua.name end
       if n.lua.enum then tag = tag .. " " .. n.lua.enum end
       out[n.line] = out[n.line] or {}
+      -- Dedup: skip kalau sudah ada tag identik
+      for _, existing in ipairs(out[n.line]) do
+        if existing == tag then return end
+      end
       out[n.line][#out[n.line]+1] = tag
     end
   end)
