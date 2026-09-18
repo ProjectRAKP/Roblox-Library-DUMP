@@ -1,15 +1,8 @@
 local M = {}
-
-local RSVD = {
-  "and","break","do","else","elseif","end","false","for","function","goto",
-  "if","in","local","nil","not","or","repeat","return","then","true",
-  "until","while",
-}
+local RSVD = { "and","break","do","else","elseif","end","false","for","function","goto", "if","in","local","nil","not","or","repeat","return","then","true", "until","while" }
 local CTXD = { "continue", "type", "export" }
-
 local LLURL = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main/LuaLib-Dump.lua"
 local LLC = { url = nil, chunk = nil, env = nil }
-
 local function norm(t)
   local a = {}
   if type(t) ~= "table" then return a end
@@ -19,11 +12,9 @@ local function norm(t)
   end
   return a
 end
-
 local function isTLS(u)
   return type(u) == "string" and u:match("^https://") ~= nil
 end
-
 local function hget(u)
   if type(request) == "function" then
     local ok, r = pcall(request, { Url = u, Method = "GET" })
@@ -40,13 +31,11 @@ local function hget(u)
   end
   return nil
 end
-
 local function lchunk(src, name)
   if type(loadstring) == "function" then return loadstring(src, name) end
   if type(load) == "function" then return load(src, name) end
   return nil
 end
-
 function M.fetchLL(url)
   url = url or LLURL
   if not isTLS(url) then return false, "HTTPS required" end
@@ -57,8 +46,7 @@ function M.fetchLL(url)
   if not ch then return false, "load failed" end
   local ok, res = pcall(ch)
   if not ok then return false, "chunk error" end
-  local lib = type(res) == "table" and res
-           or _G.LuaLib or _G.LuaLibraryDump or _G.LuaLibDump
+  local lib = type(res) == "table" and res or _G.LuaLib or _G.LuaLibraryDump or _G.LuaLibDump
   if type(lib) ~= "table" then return false, "no table" end
   _G.LuaLib = lib
   LLC.url = url
@@ -66,7 +54,6 @@ function M.fetchLL(url)
   LLC.env = lib
   return true, lib
 end
-
 local function pullLL()
   local L = _G.LuaLib or _G.LuaLibraryDump or _G.LuaLibDump
   if type(L) ~= "table" then
@@ -78,7 +65,7 @@ local function pullLL()
     local ok, r = pcall(L.GetKeywords)
     if ok and type(r) == "table" then
       return {
-        reserved   = norm(r.reserved or r.Reserved or r),
+        reserved = norm(r.reserved or r.Reserved or r),
         contextual = norm(r.contextual or r.Contextual or {}),
       }
     end
@@ -88,7 +75,7 @@ local function pullLL()
     local kw = core.Keywords or core.keywords or core.Reserved or core.reserved
     if type(kw) == "table" then
       return {
-        reserved   = norm(kw),
+        reserved = norm(kw),
         contextual = norm(core.Contextual or core.contextual or {}),
       }
     end
@@ -99,19 +86,16 @@ local function pullLL()
   end
   return nil
 end
-
 local function mkKw()
   local p = pullLL()
-  local rl = p and p.reserved   or RSVD
+  local rl = p and p.reserved or RSVD
   local cl = p and p.contextual or CTXD
   local kw, ctx = {}, {}
   for _, w in ipairs(rl) do kw[w] = true end
   for _, w in ipairs(cl) do ctx[w] = true end
   return kw, ctx
 end
-
 local KW, CTX = mkKw()
-
 function M.init(o)
   o = o or {}
   if o.lualibUrl then
@@ -130,34 +114,30 @@ function M.init(o)
   end
   return M
 end
-
 function M.getKeywords() return KW, CTX end
-
 local ESC = {
-  n="\n", t="\t", r="\r", a="\a", b="\b", f="\f", v="\v",
-  ["\\"]="\\", ['"']='"', ["'"]="'",
+  n = "\n", t = "\t", r = "\r", a = "\a", b = "\b", f = "\f", v = "\v",
+  ["\\"] = "\\", ['"'] = '"', ["'"] = "'",
 }
-
 local function dEsc(s, i)
-  local c = s:sub(i+1, i+1)
-  if c == "" then return "", i+1 end
-  if ESC[c] then return ESC[c], i+2 end
+  local c = s:sub(i + 1, i + 1)
+  if c == "" then return "", i + 1 end
+  if ESC[c] then return ESC[c], i + 2 end
   if c == "x" then
-    local h = s:sub(i+2, i+3)
-    if h:match("^%x%x$") then return string.char(tonumber(h,16)), i+4 end
+    local h = s:sub(i + 2, i + 3)
+    if h:match("^%x%x$") then return string.char(tonumber(h, 16)), i + 4 end
   end
   if c == "z" then
-    local j = i+2
-    while j <= #s and s:sub(j,j):match("%s") do j = j+1 end
+    local j = i + 2
+    while j <= #s and s:sub(j, j):match("%s") do j = j + 1 end
     return "", j
   end
   if c:match("%d") then
-    local d = s:sub(i+1):match("^%d%d?%d?")
-    return string.char(tonumber(d,10) % 256), i+1+#d
+    local d = s:sub(i + 1):match("^%d%d?%d?")
+    return string.char(tonumber(d, 10) % 256), i + 1 + #d
   end
-  return c, i+2
+  return c, i + 2
 end
-
 local function dStr(raw)
   local b = raw:sub(2, -2)
   local o, i, n = {}, 1, #b
@@ -165,32 +145,30 @@ local function dStr(raw)
     local c = b:sub(i, i)
     if c == "\\" then
       local d, ni = dEsc(b, i)
-      o[#o+1] = d
+      o[#o + 1] = d
       i = ni
     else
-      o[#o+1] = c
+      o[#o + 1] = c
       i = i + 1
     end
   end
   return table.concat(o)
 end
-
 local S2 = {
-  ["=="]=true, ["~="]=true, ["<="]=true, [">="]=true, [".."]=true,
-  ["::"]=true, ["//"]=true, ["<<"]=true, [">>"]=true,
-  ["+="]=true, ["-="]=true, ["*="]=true, ["/="]=true, ["%="]=true,
-  ["^="]=true, ["&="]=true, ["|="]=true,
+  ["=="] = true, ["~="] = true, ["<="] = true, [">="] = true, [".."] = true,
+  ["::"] = true, ["//"] = true, ["<<"] = true, [">>"] = true,
+  ["+="] = true, ["-="] = true, ["*="] = true, ["/="] = true, ["%="] = true,
+  ["^="] = true, ["&="] = true, ["|="] = true,
 }
 local S3 = {
-  ["..."]=true, ["..="]=true, ["<<="]=true, [">>="]=true, ["//="]=true,
+  ["..."] = true, ["..="] = true, ["<<="] = true, [">>="] = true, ["//="] = true,
 }
-
 local function lex(src)
   local toks = {}
   local i, n = 1, #src
   local ln, ls = 1, 1
   local function push(t, v, r, l, c)
-    toks[#toks+1] = {
+    toks[#toks + 1] = {
       type = t, val = v, raw = r or tostring(v),
       line = l or ln, col = c or (i - ls + 1),
     }
@@ -208,7 +186,7 @@ local function lex(src)
       ln = ln + 1; i = i + 1; ls = i
     elseif c:match("%s") then
       i = i + 1
-    elseif c == "-" and src:sub(i+1, i+1) == "-" then
+    elseif c == "-" and src:sub(i + 1, i + 1) == "-" then
       i = i + 2
       local eqs = src:match("^%[(=*)%[", i)
       if eqs then
@@ -217,7 +195,7 @@ local function lex(src)
         if not s then error("unterminated long comment @ " .. ln) end
         bump(i, e); i = e + 1
       else
-        while i <= n and src:sub(i,i) ~= "\n" do i = i + 1 end
+        while i <= n and src:sub(i, i) ~= "\n" do i = i + 1 end
       end
     elseif c == "[" then
       local eqs = src:match("^%[(=*)%[", i)
@@ -263,28 +241,28 @@ local function lex(src)
       local r = src:sub(i, j)
       push("String", r:sub(2, -2), r)
       i = j + 1
-    elseif c:match("%d") or (c == "." and src:sub(i+1, i+1):match("%d")) then
+    elseif c:match("%d") or (c == "." and src:sub(i + 1, i + 1):match("%d")) then
       local j = i
-      local tw = src:sub(i, i+1):lower()
+      local tw = src:sub(i, i + 1):lower()
       if tw == "0x" then
         j = i + 2
-        while j <= n and src:sub(j,j):match("[%x_]") do j = j + 1 end
+        while j <= n and src:sub(j, j):match("[%x_]") do j = j + 1 end
       elseif tw == "0b" then
         j = i + 2
-        while j <= n and src:sub(j,j):match("[01_]") do j = j + 1 end
+        while j <= n and src:sub(j, j):match("[01_]") do j = j + 1 end
       else
-        while j <= n and src:sub(j,j):match("[%d_]") do j = j + 1 end
-        if src:sub(j,j) == "." and src:sub(j+1,j+1):match("%d") then
+        while j <= n and src:sub(j, j):match("[%d_]") do j = j + 1 end
+        if src:sub(j, j) == "." and src:sub(j + 1, j + 1):match("%d") then
           j = j + 1
-          while j <= n and src:sub(j,j):match("[%d_]") do j = j + 1 end
+          while j <= n and src:sub(j, j):match("[%d_]") do j = j + 1 end
         end
-        local e = src:sub(j,j):lower()
+        local e = src:sub(j, j):lower()
         if e == "e" then
           local k = j + 1
-          if src:sub(k,k) == "+" or src:sub(k,k) == "-" then k = k + 1 end
-          if src:sub(k,k):match("%d") then
+          if src:sub(k, k) == "+" or src:sub(k, k) == "-" then k = k + 1 end
+          if src:sub(k, k):match("%d") then
             j = k
-            while j <= n and src:sub(j,j):match("%d") do j = j + 1 end
+            while j <= n and src:sub(j, j):match("%d") do j = j + 1 end
           end
         end
       end
@@ -293,13 +271,13 @@ local function lex(src)
       i = j
     elseif c:match("[%a_]") then
       local j = i
-      while j <= n and src:sub(j,j):match("[%w_]") do j = j + 1 end
+      while j <= n and src:sub(j, j):match("[%w_]") do j = j + 1 end
       local w = src:sub(i, j - 1)
       if KW[w] then push("Keyword", w, w)
       else push("Name", w, w) end
       i = j
     else
-      local three, two = src:sub(i, i+2), src:sub(i, i+1)
+      local three, two = src:sub(i, i + 2), src:sub(i, i + 1)
       local s
       if S3[three] then s = three
       elseif S2[two] then s = two
@@ -308,10 +286,9 @@ local function lex(src)
       i = i + #s
     end
   end
-  toks[#toks+1] = { type = "EOF", val = "<eof>", raw = "", line = ln }
+  toks[#toks + 1] = { type = "EOF", val = "<eof>", raw = "", line = ln }
   return toks
 end
-
 local P = {}
 P.__index = P
 local function newP(t) return setmetatable({ t = t, i = 1 }, P) end
@@ -324,7 +301,7 @@ function P:isKw(v)
   local t = self:peek(); return t.type == "Keyword" and t.val == v
 end
 function P:eatSym(v) if self:isSym(v) then return self:next() end end
-function P:eatKw(v)  if self:isKw(v)  then return self:next() end end
+function P:eatKw(v) if self:isKw(v) then return self:next() end end
 function P:expSym(v)
   if not self:isSym(v) then
     local t = self:peek()
@@ -346,20 +323,18 @@ function P:expName()
   end
   return self:next()
 end
-
 local pExp, pBlk
 local BOP = {
-  ["or"]=1, ["and"]=2,
-  ["<"]=3, [">"]=3, ["<="]=3, [">="]=3, ["~="]=3, ["=="]=3,
-  ["|"]=4, ["~"]=5, ["&"]=6,
-  ["<<"]=7, [">>"]=7,
-  [".."]=8,
-  ["+"]=9, ["-"]=9,
-  ["*"]=10, ["/"]=10, ["//"]=10, ["%"]=10,
-  ["^"]=12,
+  ["or"] = 1, ["and"] = 2,
+  ["<"] = 3, [">"] = 3, ["<="] = 3, [">="] = 3, ["~="] = 3, ["=="] = 3,
+  ["|"] = 4, ["~"] = 5, ["&"] = 6,
+  ["<<"] = 7, [">>"] = 7,
+  [".."] = 8,
+  ["+"] = 9, ["-"] = 9,
+  ["*"] = 10, ["/"] = 10, ["//"] = 10, ["%"] = 10,
+  ["^"] = 12,
 }
-local RASSOC = { ["^"]=true, [".."]=true }
-
+local RASSOC = { ["^"] = true, [".."] = true }
 local function pSuf(s)
   local e = s:pPrim()
   while true do
@@ -367,51 +342,44 @@ local function pSuf(s)
     if t.type == "Symbol" and t.val == "." then
       s:next()
       local nm = s:expName()
-      e = { type="MemberExpression", object=e, property=nm.val,
-            colon=false, line=t.line }
+      e = { type = "MemberExpression", object = e, property = nm.val, colon = false, line = t.line }
     elseif t.type == "Symbol" and t.val == "[" then
       s:next()
       local ix = pExp(s)
       s:expSym("]")
-      e = { type="IndexExpression", object=e, index=ix, line=t.line }
+      e = { type = "IndexExpression", object = e, index = ix, line = t.line }
     elseif t.type == "Symbol" and t.val == ":" then
       s:next()
       local nm = s:expName()
-      local m = { type="MemberExpression", object=e, property=nm.val,
-                  colon=true, line=t.line }
+      local m = { type = "MemberExpression", object = e, property = nm.val, colon = true, line = t.line }
       local a = s:pArgs()
-      e = { type="CallExpression", callee=m, args=a,
-            method=true, line=t.line }
+      e = { type = "CallExpression", callee = m, args = a, method = true, line = t.line }
     elseif t.type == "Symbol" and t.val == "(" then
       local a = s:pArgs()
-      e = { type="CallExpression", callee=e, args=a, method=false, line=t.line }
+      e = { type = "CallExpression", callee = e, args = a, method = false, line = t.line }
     elseif t.type == "String" then
       local st = s:next()
-      e = { type="CallExpression", callee=e,
-            args={ { type="StringLiteral", val=st.val, raw=st.raw, line=st.line } },
-            method=false, line=st.line }
+      e = { type = "CallExpression", callee = e, args = { { type = "StringLiteral", val = st.val, raw = st.raw, line = st.line } }, method = false, line = st.line }
     elseif t.type == "Symbol" and t.val == "{" then
       local tb = s:pTbl()
-      e = { type="CallExpression", callee=e, args={tb}, method=false, line=t.line }
+      e = { type = "CallExpression", callee = e, args = { tb }, method = false, line = t.line }
     else
       break
     end
   end
   return e
 end
-
 function P:pArgs()
   self:expSym("(")
   local a = {}
   if not self:isSym(")") then
     repeat
-      a[#a+1] = pExp(self)
+      a[#a + 1] = pExp(self)
     until not self:eatSym(",")
   end
   self:expSym(")")
   return a
 end
-
 function P:pTbl()
   local t0 = self:expSym("{")
   local f = {}
@@ -423,8 +391,7 @@ function P:pTbl()
       x.key = pExp(self)
       self:expSym("]"); self:expSym("=")
       x.value = pExp(self)
-    elseif self:peek().type == "Name"
-       and self:peek(1).type == "Symbol" and self:peek(1).val == "=" then
+    elseif self:peek().type == "Name" and self:peek(1).type == "Symbol" and self:peek(1).val == "=" then
       x.kind = "key"
       x.key = self:next().val
       self:next()
@@ -433,36 +400,35 @@ function P:pTbl()
       x.kind = "value"
       x.value = pExp(self)
     end
-    f[#f+1] = x
+    f[#f + 1] = x
     if not self:eatSym(",") and not self:eatSym(";") then break end
   end
   self:expSym("}")
-  return { type="TableExpression", fields=f, line=t0.line }
+  return { type = "TableExpression", fields = f, line = t0.line }
 end
-
 function P:pPrim()
   local t = self:peek()
   if t.type == "Number" then
     self:next()
-    return { type="NumberLiteral", val=t.val, raw=t.raw, line=t.line }
+    return { type = "NumberLiteral", val = t.val, raw = t.raw, line = t.line }
   end
   if t.type == "String" then
     self:next()
-    return { type="StringLiteral", val=t.val, raw=t.raw, line=t.line }
+    return { type = "StringLiteral", val = t.val, raw = t.raw, line = t.line }
   end
   if t.type == "Name" then
     self:next()
-    return { type="Name", val=t.val, line=t.line }
+    return { type = "Name", val = t.val, line = t.line }
   end
   if t.type == "Keyword" then
     if t.val == "nil" then
-      self:next(); return { type="NilLiteral", line=t.line }
+      self:next(); return { type = "NilLiteral", line = t.line }
     end
     if t.val == "true" then
-      self:next(); return { type="BooleanLiteral", val=true, line=t.line }
+      self:next(); return { type = "BooleanLiteral", val = true, line = t.line }
     end
     if t.val == "false" then
-      self:next(); return { type="BooleanLiteral", val=false, line=t.line }
+      self:next(); return { type = "BooleanLiteral", val = false, line = t.line }
     end
     if t.val == "function" then
       self:next()
@@ -471,19 +437,18 @@ function P:pPrim()
   end
   if t.type == "Symbol" then
     if t.val == "..." then
-      self:next(); return { type="VarargExpression", line=t.line }
+      self:next(); return { type = "VarargExpression", line = t.line }
     end
     if t.val == "{" then return self:pTbl() end
     if t.val == "(" then
       self:next()
       local e = pExp(self)
       self:expSym(")")
-      return { type="ParenExpression", expression=e, line=t.line }
+      return { type = "ParenExpression", expression = e, line = t.line }
     end
   end
   error(("unexpected '%s' @ %d"):format(t.val, t.line))
 end
-
 function P:pFnB(ln)
   self:expSym("(")
   local ps, va = {}, false
@@ -496,13 +461,12 @@ function P:pFnB(ln)
       if self:eatSym(":") then
         while true do
           local tk = self:peek()
-          if tk.type == "Symbol"
-             and (tk.val == "," or tk.val == ")" or tk.val == "=") then break end
+          if tk.type == "Symbol" and (tk.val == "," or tk.val == ")" or tk.val == "=") then break end
           self:next()
         end
       end
       if self:eatSym("=") then pExp(self) end
-      ps[#ps+1] = { name = nm.val, line = nm.line }
+      ps[#ps + 1] = { name = nm.val, line = nm.line }
     until not self:eatSym(",")
   end
   self:expSym(")")
@@ -516,31 +480,27 @@ function P:pFnB(ln)
   end
   local b = pBlk(self)
   self:expKw("end")
-  return { type="FunctionExpression", params=ps, vararg=va, body=b, line=ln }
+  return { type = "FunctionExpression", params = ps, vararg = va, body = b, line = ln }
 end
-
 function P:pUn()
   local t = self:peek()
-  local u = (t.type == "Keyword" and t.val == "not")
-         or (t.type == "Symbol" and (t.val == "-" or t.val == "#" or t.val == "~"))
+  local u = (t.type == "Keyword" and t.val == "not") or (t.type == "Symbol" and (t.val == "-" or t.val == "#" or t.val == "~"))
   if u then
     self:next()
     local a = self:pUn()
-    return { type="UnaryExpression", op=t.val, arg=a, line=t.line }
+    return { type = "UnaryExpression", op = t.val, arg = a, line = t.line }
   end
   return self:pPow()
 end
-
 function P:pPow()
   local b = pSuf(self)
   if self:isSym("^") then
     local t = self:next()
     local r = self:pUn()
-    return { type="BinaryExpression", op="^", left=b, right=r, line=t.line }
+    return { type = "BinaryExpression", op = "^", left = b, right = r, line = t.line }
   end
   return b
 end
-
 function P:pBin(min)
   local l = self:pUn()
   while true do
@@ -551,71 +511,68 @@ function P:pBin(min)
     self:next()
     local nm = RASSOC[t.val] and p or (p + 1)
     local r = self:pBin(nm)
-    l = { type="BinaryExpression", op=t.val, left=l, right=r, line=t.line }
+    l = { type = "BinaryExpression", op = t.val, left = l, right = r, line = t.line }
   end
   return l
 end
-
 pExp = function(s) return s:pBin(1) end
-
-local VTGT = { Name=true, MemberExpression=true, IndexExpression=true }
+local VTGT = { Name = true, MemberExpression = true, IndexExpression = true }
 local COPS = {
-  ["+="]=true, ["-="]=true, ["*="]=true, ["/="]=true, ["//="]=true,
-  ["%="]=true, ["^="]=true, ["..="]=true, ["&="]=true, ["|="]=true,
-  ["<<="]=true, [">>="]=true,
+  ["+="] = true, ["-="] = true, ["*="] = true, ["/="] = true, ["//="] = true,
+  ["%="] = true, ["^="] = true, ["..="] = true, ["&="] = true, ["|="] = true,
+  ["<<="] = true, [">>="] = true,
 }
-
 function P:pStmt()
   local t = self:peek()
   if t.type == "Symbol" and t.val == ";" then
-    self:next(); return { type="EmptyStatement", line=t.line }
+    self:next(); return { type = "EmptyStatement", line = t.line }
   end
   if t.type == "Symbol" and t.val == "::" then
     self:next()
     local nm = self:expName()
     self:expSym("::")
-    return { type="LabelStatement", name=nm.val, line=t.line }
+    return { type = "LabelStatement", name = nm.val, line = t.line }
   end
   if t.type == "Keyword" then
     if t.val == "break" then
-      self:next(); return { type="BreakStatement", line=t.line }
+      self:next(); return { type = "BreakStatement", line = t.line }
     end
     if t.val == "goto" then
       self:next()
       local nm = self:expName()
-      return { type="GotoStatement", label=nm.val, line=t.line }
+      return { type = "GotoStatement", label = nm.val, line = t.line }
     end
     if t.val == "do" then
       self:next()
       local b = pBlk(self); self:expKw("end")
-      return { type="DoStatement", body=b, line=t.line }
+      return { type = "DoStatement", body = b, line = t.line }
     end
     if t.val == "while" then
       self:next()
       local c = pExp(self); self:expKw("do")
       local b = pBlk(self); self:expKw("end")
-      return { type="WhileStatement", condition=c, body=b, line=t.line }
+      return { type = "WhileStatement", condition = c, body = b, line = t.line }
     end
     if t.val == "repeat" then
       self:next()
       local b = pBlk(self); self:expKw("until")
       local c = pExp(self)
-      return { type="RepeatStatement", body=b, condition=c, line=t.line }
+      return { type = "RepeatStatement", body = b, condition = c, line = t.line }
     end
     if t.val == "if" then
       self:next()
       local cl = {}
       local c = pExp(self); self:expKw("then")
-      cl[1] = { condition=c, body=pBlk(self) }
+      cl[1] = { condition = c, body = pBlk(self) }
       while self:isKw("elseif") do
         self:next()
         local cc = pExp(self); self:expKw("then")
-        cl[#cl+1] = { condition=cc, body=pBlk(self) }
+        cl[#cl + 1] = { condition = cc, body = pBlk(self) }
       end
       local eb = nil
       if self:eatKw("else") then eb = pBlk(self) end
       self:expKw("end")
-      return { type="IfStatement", clauses=cl, elseBody=eb, line=t.line }
+      return { type = "IfStatement", clauses = cl, elseBody = eb, line = t.line }
     end
     if t.val == "for" then
       self:next()
@@ -627,40 +584,36 @@ function P:pStmt()
         if self:eatSym(",") then st = pExp(self) end
         self:expKw("do")
         local bd = pBlk(self); self:expKw("end")
-        return { type="NumericForStatement", var=f.val,
-                 from=a, to=b, step=st, body=bd, line=t.line }
+        return { type = "NumericForStatement", var = f.val, from = a, to = b, step = st, body = bd, line = t.line }
       else
         local vs = { f.val }
-        while self:eatSym(",") do vs[#vs+1] = self:expName().val end
+        while self:eatSym(",") do vs[#vs + 1] = self:expName().val end
         self:expKw("in")
         local it = { pExp(self) }
-        while self:eatSym(",") do it[#it+1] = pExp(self) end
+        while self:eatSym(",") do it[#it + 1] = pExp(self) end
         self:expKw("do")
         local bd = pBlk(self); self:expKw("end")
-        return { type="GenericForStatement", vars=vs, iter=it, body=bd, line=t.line }
+        return { type = "GenericForStatement", vars = vs, iter = it, body = bd, line = t.line }
       end
     end
     if t.val == "function" then
       self:next()
-      local tg = { type="Name", val=self:expName().val, line=t.line }
+      local tg = { type = "Name", val = self:expName().val, line = t.line }
       while self:isSym(".") do
         self:next()
         local nm = self:expName()
-        tg = { type="MemberExpression", object=tg, property=nm.val,
-               colon=false, line=t.line }
+        tg = { type = "MemberExpression", object = tg, property = nm.val, colon = false, line = t.line }
       end
       local me = nil
       if self:isSym(":") then
         self:next()
         local nm = self:expName()
-        tg = { type="MemberExpression", object=tg, property=nm.val,
-               colon=true, line=t.line }
+        tg = { type = "MemberExpression", object = tg, property = nm.val, colon = true, line = t.line }
         me = nm.val
       end
       local fn = self:pFnB(t.line)
-      if me then table.insert(fn.params, 1, { name="self", implicit=true }) end
-      return { type="FunctionDeclaration", name=tg, func=fn,
-               isLocal=false, line=t.line }
+      if me then table.insert(fn.params, 1, { name = "self", implicit = true }) end
+      return { type = "FunctionDeclaration", name = tg, func = fn, isLocal = false, line = t.line }
     end
     if t.val == "local" then
       self:next()
@@ -668,13 +621,11 @@ function P:pStmt()
         self:next()
         local nm = self:expName()
         local fn = self:pFnB(t.line)
-        return { type="FunctionDeclaration",
-                 name={ type="Name", val=nm.val, line=t.line },
-                 func=fn, isLocal=true, line=t.line }
+        return { type = "FunctionDeclaration", name = { type = "Name", val = nm.val, line = t.line }, func = fn, isLocal = true, line = t.line }
       end
       local ns = { { name = self:expName().val, line = t.line } }
       while self:eatSym(",") do
-        ns[#ns+1] = { name = self:expName().val, line = t.line }
+        ns[#ns + 1] = { name = self:expName().val, line = t.line }
       end
       if self:isSym(":") then
         self:next()
@@ -682,49 +633,41 @@ function P:pStmt()
           local tk = self:peek()
           if tk.type == "Symbol" and (tk.val == "," or tk.val == "=") then break end
           if tk.type == "EOF" then break end
-          if tk.type == "Keyword"
-             and (tk.val == "do" or tk.val == "end" or tk.val == "then") then break end
+          if tk.type == "Keyword" and (tk.val == "do" or tk.val == "end" or tk.val == "then") then break end
           self:next()
         end
       end
       local v = {}
       if self:eatSym("=") then
-        v[#v+1] = pExp(self)
-        while self:eatSym(",") do v[#v+1] = pExp(self) end
+        v[#v + 1] = pExp(self)
+        while self:eatSym(",") do v[#v + 1] = pExp(self) end
       end
-      return { type="LocalStatement", names=ns, values=v, line=t.line }
+      return { type = "LocalStatement", names = ns, values = v, line = t.line }
     end
     if t.val == "return" then
       self:next()
       local v = {}
-      if not self:isSym(";") and not self:isKw("end") and not self:isKw("else")
-         and not self:isKw("elseif") and not self:isKw("until")
-         and self:peek().type ~= "EOF" then
-        v[#v+1] = pExp(self)
-        while self:eatSym(",") do v[#v+1] = pExp(self) end
+      if not self:isSym(";") and not self:isKw("end") and not self:isKw("else") and not self:isKw("elseif") and not self:isKw("until") and self:peek().type ~= "EOF" then
+        v[#v + 1] = pExp(self)
+        while self:eatSym(",") do v[#v + 1] = pExp(self) end
       end
       self:eatSym(";")
-      return { type="ReturnStatement", values=v, line=t.line }
+      return { type = "ReturnStatement", values = v, line = t.line }
     end
   end
-
   if t.type == "Name" and t.val == "continue" then
     local nx = self:peek(1)
-    local cx = not (nx.type == "Symbol" and (
-      nx.val == "=" or nx.val == "." or nx.val == ":" or nx.val == "("
-      or nx.val == "[" or nx.val == "," or COPS[nx.val]
-    ))
+    local cx = not (nx.type == "Symbol" and (nx.val == "=" or nx.val == "." or nx.val == ":" or nx.val == "(" or nx.val == "[" or nx.val == "," or COPS[nx.val]))
     if cx then
       self:next()
-      return { type="ContinueStatement", line=t.line }
+      return { type = "ContinueStatement", line = t.line }
     end
   end
-
   local e = pExp(self)
   local nx = self:peek()
   if nx.type == "Symbol" and (nx.val == "=" or COPS[nx.val]) then
     local tg = { e }
-    while self:eatSym(",") do tg[#tg+1] = pExp(self) end
+    while self:eatSym(",") do tg[#tg + 1] = pExp(self) end
     local op = self:next().val
     for _, x in ipairs(tg) do
       if not VTGT[x.type] then
@@ -732,69 +675,64 @@ function P:pStmt()
       end
     end
     local v = { pExp(self) }
-    while self:eatSym(",") do v[#v+1] = pExp(self) end
-    return { type="AssignmentStatement", targets=tg, values=v, op=op, line=t.line }
+    while self:eatSym(",") do v[#v + 1] = pExp(self) end
+    return { type = "AssignmentStatement", targets = tg, values = v, op = op, line = t.line }
   end
-  return { type="ExpressionStatement", expression=e, line=t.line }
+  return { type = "ExpressionStatement", expression = e, line = t.line }
 end
-
 pBlk = function(s)
   local l0 = s:peek().line
   local b = {}
   while true do
     local t = s:peek()
     if t.type == "EOF" then break end
-    if t.type == "Keyword" and (t.val == "end" or t.val == "else"
-       or t.val == "elseif" or t.val == "until") then break end
-    b[#b+1] = s:pStmt()
+    if t.type == "Keyword" and (t.val == "end" or t.val == "else" or t.val == "elseif" or t.val == "until") then break end
+    b[#b + 1] = s:pStmt()
   end
-  return { type="Block", body=b, line=l0 }
+  return { type = "Block", body = b, line = l0 }
 end
-
 function P:pChk()
   local b = pBlk(self)
   if self:peek().type ~= "EOF" then
     local t = self:peek()
     error(("unexpected '%s' @ %d"):format(t.val, t.line))
   end
-  return { type="Chunk", body=b.body, line=1 }
+  return { type = "Chunk", body = b.body, line = 1 }
 end
-
 local CHLD = {
-  Chunk               = { "body" },
-  Block               = { "body" },
-  EmptyStatement      = {},
-  LabelStatement      = {},
-  BreakStatement      = {},
-  ContinueStatement   = {},
-  GotoStatement       = {},
-  DoStatement         = { "body" },
-  WhileStatement      = { "condition", "body" },
-  RepeatStatement     = { "body", "condition" },
-  IfStatement         = { "clauses", "elseBody" },
+  Chunk = { "body" },
+  Block = { "body" },
+  EmptyStatement = {},
+  LabelStatement = {},
+  BreakStatement = {},
+  ContinueStatement = {},
+  GotoStatement = {},
+  DoStatement = { "body" },
+  WhileStatement = { "condition", "body" },
+  RepeatStatement = { "body", "condition" },
+  IfStatement = { "clauses", "elseBody" },
   NumericForStatement = { "from", "to", "step", "body" },
   GenericForStatement = { "iter", "body" },
   FunctionDeclaration = { "name", "func" },
-  LocalStatement      = { "values" },
-  ReturnStatement     = { "values" },
+  LocalStatement = { "values" },
+  ReturnStatement = { "values" },
   ExpressionStatement = { "expression" },
   AssignmentStatement = { "targets", "values" },
-  FunctionExpression  = { "body" },
-  TableExpression     = { "fields" },
-  BinaryExpression    = { "left", "right" },
-  UnaryExpression     = { "arg" },
-  ParenExpression     = { "expression" },
-  MemberExpression    = { "object" },
-  IndexExpression     = { "object", "index" },
-  CallExpression      = { "callee", "args" },
-  Name                = {},
-  NumberLiteral       = {},
-  StringLiteral       = {},
-  BooleanLiteral      = {},
-  NilLiteral          = {},
-  VarargExpression    = {},
+  FunctionExpression = { "body" },
+  TableExpression = { "fields" },
+  BinaryExpression = { "left", "right" },
+  UnaryExpression = { "arg" },
+  ParenExpression = { "expression" },
+  MemberExpression = { "object" },
+  IndexExpression = { "object", "index" },
+  CallExpression = { "callee", "args" },
+  Name = {},
+  NumberLiteral = {},
+  StringLiteral = {},
+  BooleanLiteral = {},
+  NilLiteral = {},
+  VarargExpression = {},
 }
-
 local wVal
 wVal = function(v, cb, p)
   if type(v) ~= "table" then return end
@@ -807,13 +745,12 @@ wVal = function(v, cb, p)
           M.walk(it, cb, p)
         else
           if it.condition then M.walk(it.condition, cb, p) end
-          if it.body      then M.walk(it.body, cb, p) end
+          if it.body then M.walk(it.body, cb, p) end
         end
       end
     end
   end
 end
-
 function M.walk(n, cb, p)
   if not n then return end
   cb(n, p)
@@ -824,36 +761,32 @@ function M.walk(n, cb, p)
     end
   end
 end
-
 function M.findAll(t, ty)
   local out = {}
   M.walk(t, function(n)
-    if n.type == ty then out[#out+1] = n end
+    if n.type == ty then out[#out + 1] = n end
   end)
   return out
 end
-
 local PRC = {
-  ["or"]=1, ["and"]=2,
-  ["<"]=3, [">"]=3, ["<="]=3, [">="]=3, ["~="]=3, ["=="]=3,
-  ["|"]=4, ["~"]=5, ["&"]=6,
-  ["<<"]=7, [">>"]=7,
-  [".."]=8,
-  ["+"]=9, ["-"]=9,
-  ["*"]=10, ["/"]=10, ["//"]=10, ["%"]=10,
-  ["^"]=12,
+  ["or"] = 1, ["and"] = 2,
+  ["<"] = 3, [">"] = 3, ["<="] = 3, [">="] = 3, ["~="] = 3, ["=="] = 3,
+  ["|"] = 4, ["~"] = 5, ["&"] = 6,
+  ["<<"] = 7, [">>"] = 7,
+  [".."] = 8,
+  ["+"] = 9, ["-"] = 9,
+  ["*"] = 10, ["/"] = 10, ["//"] = 10, ["%"] = 10,
+  ["^"] = 12,
 }
-local RA = { ["^"]=true, [".."]=true }
+local RA = { ["^"] = true, [".."] = true }
 local PRU = 11
 local PRA = 100
-
 local function nPrec(n)
   if n.type == "BinaryExpression" then return PRC[n.op] or PRA end
   if n.type == "UnaryExpression" then return PRU end
   return PRA
 end
-
-local IND = "  "
+local IND = " "
 local function ind(n) return string.rep(IND, n) end
 local function escS(s)
   s = s:gsub("\\", "\\\\")
@@ -864,16 +797,14 @@ local function escS(s)
   s = s:gsub("%z", "\\0")
   return '"' .. s .. '"'
 end
-
 local ge, gs
 local function gbLines(b, lv)
   local o = {}
   for _, st in ipairs(b.body or {}) do
-    o[#o+1] = gs(st, lv)
+    o[#o + 1] = gs(st, lv)
   end
   return o
 end
-
 ge = function(n, lv, pp, side, pOp)
   if not n then return "" end
   pp = pp or 0
@@ -911,7 +842,7 @@ ge = function(n, lv, pp, side, pOp)
     b = ge(n.object, lv, PRA, "left") .. "[" .. ge(n.index, lv) .. "]"
   elseif t == "CallExpression" then
     local a = {}
-    for _, x in ipairs(n.args) do a[#a+1] = ge(x, lv) end
+    for _, x in ipairs(n.args) do a[#a + 1] = ge(x, lv) end
     b = ge(n.callee, lv, PRA, "left") .. "(" .. table.concat(a, ", ") .. ")"
   elseif t == "TableExpression" then
     if #n.fields == 0 then
@@ -921,11 +852,11 @@ ge = function(n, lv, pp, side, pOp)
       local v = lv + 1
       for _, f in ipairs(n.fields) do
         if f.kind == "index" then
-          a[#a+1] = "[" .. ge(f.key, v) .. "] = " .. ge(f.value, v)
+          a[#a + 1] = "[" .. ge(f.key, v) .. "] = " .. ge(f.value, v)
         elseif f.kind == "key" then
-          a[#a+1] = f.key .. " = " .. ge(f.value, v)
+          a[#a + 1] = f.key .. " = " .. ge(f.value, v)
         else
-          a[#a+1] = ge(f.value, v)
+          a[#a + 1] = ge(f.value, v)
         end
       end
       b = "{" .. table.concat(a, ", ") .. "}"
@@ -933,12 +864,11 @@ ge = function(n, lv, pp, side, pOp)
   elseif t == "FunctionExpression" then
     local p = {}
     for _, x in ipairs(n.params) do
-      if not x.implicit then p[#p+1] = x.name end
+      if not x.implicit then p[#p + 1] = x.name end
     end
-    if n.vararg then p[#p+1] = "..." end
+    if n.vararg then p[#p + 1] = "..." end
     local ls = gbLines(n.body, lv + 1)
-    local inr = (#ls > 0)
-      and ("\n" .. table.concat(ls, "\n") .. "\n" .. ind(lv)) or ""
+    local inr = (#ls > 0) and ("\n" .. table.concat(ls, "\n") .. "\n" .. ind(lv)) or ""
     b = "function(" .. table.concat(p, ", ") .. ")" .. inr .. "end"
   else
     b = "--[[ ? " .. t .. " ]]"
@@ -957,7 +887,6 @@ ge = function(n, lv, pp, side, pOp)
   end
   return b
 end
-
 gs = function(s, lv)
   local pd = ind(lv)
   local t = s.type
@@ -973,48 +902,46 @@ gs = function(s, lv)
     return pd .. "::" .. s.name .. "::"
   elseif t == "DoStatement" then
     local l = { pd .. "do" }
-    for _, st in ipairs(s.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "end"
+    for _, st in ipairs(s.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "WhileStatement" then
     local l = { pd .. "while " .. ge(s.condition, lv) .. " do" }
-    for _, st in ipairs(s.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "end"
+    for _, st in ipairs(s.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "RepeatStatement" then
     local l = { pd .. "repeat" }
-    for _, st in ipairs(s.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "until " .. ge(s.condition, lv)
+    for _, st in ipairs(s.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "until " .. ge(s.condition, lv)
     return table.concat(l, "\n")
   elseif t == "IfStatement" then
     local l = {}
     for i, cl in ipairs(s.clauses) do
       local kw = (i == 1) and "if" or "elseif"
-      l[#l+1] = pd .. kw .. " " .. ge(cl.condition, lv) .. " then"
-      for _, st in ipairs(cl.body.body) do l[#l+1] = gs(st, lv + 1) end
+      l[#l + 1] = pd .. kw .. " " .. ge(cl.condition, lv) .. " then"
+      for _, st in ipairs(cl.body.body) do l[#l + 1] = gs(st, lv + 1) end
     end
     if s.elseBody then
-      l[#l+1] = pd .. "else"
-      for _, st in ipairs(s.elseBody.body) do l[#l+1] = gs(st, lv + 1) end
+      l[#l + 1] = pd .. "else"
+      for _, st in ipairs(s.elseBody.body) do l[#l + 1] = gs(st, lv + 1) end
     end
-    l[#l+1] = pd .. "end"
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "NumericForStatement" then
-    local h = pd .. "for " .. s.var .. " = "
-              .. ge(s.from, lv) .. ", " .. ge(s.to, lv)
+    local h = pd .. "for " .. s.var .. " = " .. ge(s.from, lv) .. ", " .. ge(s.to, lv)
     if s.step then h = h .. ", " .. ge(s.step, lv) end
     h = h .. " do"
     local l = { h }
-    for _, st in ipairs(s.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "end"
+    for _, st in ipairs(s.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "GenericForStatement" then
     local it = {}
-    for _, x in ipairs(s.iter) do it[#it+1] = ge(x, lv) end
-    local l = { pd .. "for " .. table.concat(s.vars, ", ")
-                    .. " in " .. table.concat(it, ", ") .. " do" }
-    for _, st in ipairs(s.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "end"
+    for _, x in ipairs(s.iter) do it[#it + 1] = ge(x, lv) end
+    local l = { pd .. "for " .. table.concat(s.vars, ", ") .. " in " .. table.concat(it, ", ") .. " do" }
+    for _, st in ipairs(s.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "FunctionDeclaration" then
     local h
@@ -1025,60 +952,56 @@ gs = function(s, lv)
     end
     local p = {}
     for _, x in ipairs(s.func.params) do
-      if not x.implicit then p[#p+1] = x.name end
+      if not x.implicit then p[#p + 1] = x.name end
     end
-    if s.func.vararg then p[#p+1] = "..." end
+    if s.func.vararg then p[#p + 1] = "..." end
     h = h .. "(" .. table.concat(p, ", ") .. ")"
     local l = { h }
-    for _, st in ipairs(s.func.body.body) do l[#l+1] = gs(st, lv + 1) end
-    l[#l+1] = pd .. "end"
+    for _, st in ipairs(s.func.body.body) do l[#l + 1] = gs(st, lv + 1) end
+    l[#l + 1] = pd .. "end"
     return table.concat(l, "\n")
   elseif t == "LocalStatement" then
     local n = {}
-    for _, x in ipairs(s.names) do n[#n+1] = x.name end
+    for _, x in ipairs(s.names) do n[#n + 1] = x.name end
     local ln = pd .. "local " .. table.concat(n, ", ")
     if #s.values > 0 then
       local v = {}
-      for _, x in ipairs(s.values) do v[#v+1] = ge(x, lv) end
+      for _, x in ipairs(s.values) do v[#v + 1] = ge(x, lv) end
       ln = ln .. " = " .. table.concat(v, ", ")
     end
     return ln
   elseif t == "ReturnStatement" then
     if #s.values == 0 then return pd .. "return" end
     local v = {}
-    for _, x in ipairs(s.values) do v[#v+1] = ge(x, lv) end
+    for _, x in ipairs(s.values) do v[#v + 1] = ge(x, lv) end
     return pd .. "return " .. table.concat(v, ", ")
   elseif t == "ExpressionStatement" then
     return pd .. ge(s.expression, lv)
   elseif t == "AssignmentStatement" then
     local tg, v = {}, {}
-    for _, x in ipairs(s.targets) do tg[#tg+1] = ge(x, lv) end
-    for _, x in ipairs(s.values)  do v[#v+1]  = ge(x, lv) end
+    for _, x in ipairs(s.targets) do tg[#tg + 1] = ge(x, lv) end
+    for _, x in ipairs(s.values) do v[#v + 1] = ge(x, lv) end
     return pd .. table.concat(tg, ", ") .. " " .. s.op .. " " .. table.concat(v, ", ")
   else
     return pd .. "--[[ ? stmt " .. t .. " ]]"
   end
 end
-
 function M.gen(t)
   if not t then return "" end
   if t.type == "Chunk" or t.type == "Block" then
     local l = {}
-    for _, st in ipairs(t.body) do l[#l+1] = gs(st, 0) end
+    for _, st in ipairs(t.body) do l[#l + 1] = gs(st, 0) end
     return table.concat(l, "\n")
   end
   return ge(t, 0)
 end
-
 local _parse = function(src)
   if type(src) ~= "string" then
     error("BuilderAST.parse: expected string, got " .. type(src))
   end
   return newP(lex(src)):pChk()
 end
-
 M._ll = nil
-
 local function bindLL()
   local L = _G.LuaLib or _G.LuaLibraryDump or _G.LuaLibDump
   if type(L) ~= "table" then
@@ -1088,21 +1011,12 @@ local function bindLL()
   if type(L) == "table" then M._ll = L end
   return L
 end
-
 function M.bind(lib)
   if type(lib) == "table" then M._ll = lib end
   return M
 end
-
 function M.ll() return M._ll end
-
--- ============================================================
--- LLX — Adapter ke LuaLib
--- ============================================================
 local LLX = {}
-
--- Pseudo-class: RBXScriptSignal & RBXScriptConnection (bukan class di LuaLib,
--- tapi punya method standar yang wajib dikenali)
 local PSEUDO = {
   RBXScriptSignal = {
     Connect = true, ConnectParallel = true, Once = true, Wait = true,
@@ -1111,7 +1025,6 @@ local PSEUDO = {
     Disconnect = true,
   },
 }
-
 local MCACHE = {}
 local function methodSet(L, cls)
   if MCACHE[cls] then return MCACHE[cls] end
@@ -1127,7 +1040,6 @@ local function methodSet(L, cls)
   MCACHE[cls] = s
   return s
 end
-
 local function eventSet(L, cls)
   local key = "e:" .. cls
   if MCACHE[key] then return MCACHE[key] end
@@ -1143,27 +1055,23 @@ local function eventSet(L, cls)
   MCACHE[key] = s
   return s
 end
-
 function LLX.Class(name)
   local L = M._ll
   if not L or not name then return nil end
   if type(L.GetClassChain) == "function" then
     local ok, chain = pcall(L.GetClassChain, name)
     if ok and type(chain) == "table" and #chain > 0 then
-      return { kind="class", name=name, chain=chain, src="LuaLib" }
+      return { kind = "class", name = name, chain = chain, src = "LuaLib" }
     end
   end
   return nil
 end
-
 function LLX.Method(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
-  -- Pseudo-type check dulu
   if PSEUDO[cls] and PSEUDO[cls][nm] then
-    return { kind="method", class=cls, name=nm, pseudo=true, src="LuaLib" }
+    return { kind = "method", class = cls, name = nm, pseudo = true, src = "LuaLib" }
   end
-  -- DUMP methods
   local set = methodSet(L, cls)
   if set[nm] then
     local sig
@@ -1180,19 +1088,16 @@ function LLX.Method(cls, nm)
       local ok, y = pcall(L.IsYielding, nm, cls)
       if ok then yielding = y == true end
     end
-    return { kind="method", class=cls, name=nm, sig=sig,
-             yielding=yielding, src="LuaLib" }
+    return { kind = "method", class = cls, name = nm, sig = sig, yielding = yielding, src = "LuaLib" }
   end
-  -- Datatype methods
   if type(L.HasDatatypeMethod) == "function" then
     local ok, has = pcall(L.HasDatatypeMethod, cls, nm)
     if ok and has then
-      return { kind="method", class=cls, name=nm, datatype=true, src="LuaLib" }
+      return { kind = "method", class = cls, name = nm, datatype = true, src = "LuaLib" }
     end
   end
   return nil
 end
-
 function LLX.Prop(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
@@ -1209,10 +1114,8 @@ function LLX.Prop(cls, nm)
     local ok3, r = pcall(L.IsPropertyReadOnly, cls, nm)
     if ok3 then ro = r == true end
   end
-  return { kind="property", class=cls, name=nm,
-           ptype=typ, readonly=ro, src="LuaLib" }
+  return { kind = "property", class = cls, name = nm, ptype = typ, readonly = ro, src = "LuaLib" }
 end
-
 function LLX.Event(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
@@ -1223,10 +1126,8 @@ function LLX.Event(cls, nm)
     local ok, r = pcall(L.GetEventSignature, nm, cls)
     if ok and type(r) == "string" then sig = r end
   end
-  return { kind="event", class=cls, name=nm, sig=sig,
-           retType="RBXScriptSignal", src="LuaLib" }
+  return { kind = "event", class = cls, name = nm, sig = sig, retType = "RBXScriptSignal", src = "LuaLib" }
 end
-
 function LLX.Enum(path)
   local L = M._ll
   if not L or not path then return nil end
@@ -1240,12 +1141,10 @@ function LLX.Enum(path)
       local ok2, v = pcall(L.GetEnumValue, enumName, item)
       if ok2 then val = v end
     end
-    return { kind="enum", enum="Enum."..enumName.."."..item,
-             enumName=enumName, item=item, val=val, src="LuaLib" }
+    return { kind = "enum", enum = "Enum." .. enumName .. "." .. item, enumName = enumName, item = item, val = val, src = "LuaLib" }
   end
   return nil
 end
-
 function LLX.EnumByValue(enumName, val)
   local L = M._ll
   if not L or not enumName or not val then return nil end
@@ -1253,13 +1152,11 @@ function LLX.EnumByValue(enumName, val)
     local ok, r = pcall(L.ResolveEnumFull, enumName, val)
     if ok and type(r) == "string" then
       local eName, item = r:match("^Enum%.([^%.]+)%.(.+)$")
-      return { kind="enum", enum=r, enumName=eName, item=item,
-               val=val, src="LuaLib" }
+      return { kind = "enum", enum = r, enumName = eName, item = item, val = val, src = "LuaLib" }
     end
   end
   return nil
 end
-
 function LLX.FindEnumsByValue(val)
   local L = M._ll
   if not L or not val then return nil end
@@ -1269,25 +1166,23 @@ function LLX.FindEnumsByValue(val)
       local out = {}
       for i, v in ipairs(list) do
         local eName, item = v:match("^Enum%.([^%.]+)%.(.+)$")
-        out[i] = { kind="enum", enum=v, enumName=eName, item=item, src="LuaLib" }
+        out[i] = { kind = "enum", enum = v, enumName = eName, item = item, src = "LuaLib" }
       end
       return out
     end
   end
   return nil
 end
-
 function LLX.DatatypeMethod(dt, nm)
   local L = M._ll
   if not L or not dt or not nm then return nil end
   if type(L.HasDatatypeMethod) ~= "function" then return nil end
   local ok, has = pcall(L.HasDatatypeMethod, dt, nm)
   if ok and has == true then
-    return { kind="method", class=dt, name=nm, datatype=true, src="LuaLib" }
+    return { kind = "method", class = dt, name = nm, datatype = true, src = "LuaLib" }
   end
   return nil
 end
-
 function LLX.IsDatatype(name)
   local L = M._ll
   if not L or not name then return false end
@@ -1295,7 +1190,6 @@ function LLX.IsDatatype(name)
   local ok, has = pcall(L.HasDatatype, name)
   return ok and has == true
 end
-
 function LLX.Sig(cls, nm)
   local L = M._ll
   if not L then return nil end
@@ -1309,36 +1203,23 @@ function LLX.Sig(cls, nm)
   end
   return nil
 end
-
 function M.llx() return LLX end
-
 function M.resolve(cls, nm)
   if not M._ll then bindLL() end
   return LLX.Sig(cls, nm)
 end
-
--- ============================================================
--- Type inference
--- ============================================================
 local function inferCls(e)
   if not e then return nil end
   if e.type == "CallExpression" then
     local c = e.callee
     if not c or c.type ~= "MemberExpression" then return nil end
     local a = e.args[1]
-    -- game:GetService("X")
-    if c.colon and c.object and c.object.type == "Name"
-       and c.object.val == "game" and c.property == "GetService"
-       and a and a.type == "StringLiteral" then
+    if c.colon and c.object and c.object.type == "Name" and c.object.val == "game" and c.property == "GetService" and a and a.type == "StringLiteral" then
       return a.val, "service"
     end
-    -- Instance.new("X")
-    if not c.colon and c.object and c.object.type == "Name"
-       and c.object.val == "Instance" and c.property == "new"
-       and a and a.type == "StringLiteral" then
+    if not c.colon and c.object and c.object.type == "Name" and c.object.val == "Instance" and c.property == "new" and a and a.type == "StringLiteral" then
       return a.val, "instance"
     end
-    -- Datatype constructor: Vector3.new(), Color3.new(), dst
     if not c.colon and c.object and c.object.type == "Name" then
       local dtype = c.object.val
       if LLX.IsDatatype(dtype) then
@@ -1348,24 +1229,19 @@ local function inferCls(e)
         end
       end
     end
-    -- Chained: gunakan node.lua.retType kalo sudah di-tag
     if e.lua and e.lua.retType then
       return e.lua.retType, "return"
     end
     return nil
   end
-  -- Member access: local hp = part.Position
   if e.type == "MemberExpression" and not e.colon then
     if e.lua and e.lua.ptype then
       local t = e.lua.ptype
-      -- "Enum.Material" bukan class — return apapun yang string
       if t and not t:match("^Enum%.") then return t, "property" end
     end
   end
   return nil
 end
-
--- Rekursif: resolve type dari expression apa pun
 local function resolveType(node, b)
   if not node then return nil end
   local t = node.type
@@ -1373,7 +1249,6 @@ local function resolveType(node, b)
     local bd = b[node.val]
     if bd and bd.class then return bd.class end
     if node.lua and node.lua.retType then return node.lua.retType end
-    -- Fallback: apakah ini nama datatype? (Vector3, CFrame, dst)
     if LLX.IsDatatype(node.val) then return node.val end
     return nil
   end
@@ -1401,10 +1276,6 @@ local function resolveType(node, b)
   end
   return nil
 end
-
--- ============================================================
--- scanBinds
--- ============================================================
 local function scanBinds(tree)
   local b = {}
   M.walk(tree, function(n)
@@ -1413,9 +1284,7 @@ local function scanBinds(tree)
         local ne = n.names[i]
         if ne and ne.name then
           local cls, via = inferCls(v)
-          if cls then
-            b[ne.name] = { class=cls, via=via, line=ne.line }
-          end
+          if cls then b[ne.name] = { class = cls, via = via, line = ne.line } end
         end
       end
     elseif n.type == "AssignmentStatement" then
@@ -1423,17 +1292,13 @@ local function scanBinds(tree)
         local t = n.targets[i]
         if t and t.type == "Name" then
           local cls, via = inferCls(v)
-          if cls then
-            b[t.val] = { class=cls, via=via, line=t.line }
-          end
+          if cls then b[t.val] = { class = cls, via = via, line = t.line } end
         end
       end
     end
   end)
   return b
 end
-
--- Callback param inference: X:Connect(function(p) ... end) → p = Player
 local function inferCallbackParams(tree, b)
   local added = false
   M.walk(tree, function(n)
@@ -1452,30 +1317,21 @@ local function inferCallbackParams(tree, b)
     if not L or type(L.GetEventParams) ~= "function" then return end
     local ok, params = pcall(L.GetEventParams, evt.lua.name, evt.lua.class)
     if not ok or type(params) ~= "string" then return end
-    -- Parse "player:Player,name:string,val:Variant"
     local paramList = {}
     for part in params:gmatch("([^,]+)") do
       local pn, pt = part:match("^%s*([%w_]+)%s*:%s*([%w_%.:]+)%s*$")
-      if pn and pt then
-        paramList[#paramList+1] = { name = pn, type = pt }
-      end
+      if pn and pt then paramList[#paramList + 1] = { name = pn, type = pt } end
     end
     for i, fp in ipairs(arg1.params) do
       local ep = paramList[i]
       if ep and not b[fp.name] then
-        b[fp.name] = { class=ep.type, via="event", line=fp.line }
+        b[fp.name] = { class = ep.type, via = "event", line = fp.line }
         added = true
       end
     end
   end)
   return added
 end
-
--- ============================================================
--- Enrichment
--- ============================================================
-
--- Deteksi polos `Enum.X.Y` di AST
 local function enrichEnumExpr(n)
   if n.type ~= "MemberExpression" then return end
   if n.colon then return end
@@ -1487,8 +1343,6 @@ local function enrichEnumExpr(n)
   local e = LLX.Enum(mid.property .. "." .. n.property)
   if e then n.lua = e end
 end
-
--- `part.Material = 256` → convert ke enum
 local function enrichNumToEnum(n, b)
   if n.type ~= "AssignmentStatement" then return end
   for i, v in ipairs(n.values) do
@@ -1510,10 +1364,8 @@ local function enrichNumToEnum(n, b)
     end
   end
 end
-
 local function enrichMember(n, b)
   if n.type ~= "MemberExpression" then return end
-  -- Skip `Enum.X.Y` chain
   if not n.colon then
     local mid = n.object
     if mid and mid.type == "MemberExpression" and not mid.colon then
@@ -1527,16 +1379,13 @@ local function enrichMember(n, b)
   if n.colon then
     info = LLX.Method(objType, n.property) or LLX.Event(objType, n.property)
   else
-    info = LLX.Prop(objType, n.property)
-        or LLX.Event(objType, n.property)
-        or LLX.Method(objType, n.property)
+    info = LLX.Prop(objType, n.property) or LLX.Event(objType, n.property) or LLX.Method(objType, n.property)
   end
   if info then
     n.lua = info
     n.lua.owner = n.object.type == "Name" and n.object.val or nil
   end
 end
-
 local function enrichCall(n, b)
   if n.type ~= "CallExpression" then return end
   local c = n.callee
@@ -1550,15 +1399,10 @@ local function enrichCall(n, b)
     if not info then return end
   end
   n.lua = {
-    kind = "call",
-    cls  = objType,
-    name = c.property,
-    sig  = info.sig,
-    args = n.args,
-    src  = "LuaLib",
+    kind = "call", cls = objType, name = c.property,
+    sig = info.sig, args = n.args, src = "LuaLib",
   }
 end
-
 local function enrichEnumString(n)
   if n.type ~= "StringLiteral" or not n._pc then return end
   local pc = n._pc.lua
@@ -1566,19 +1410,16 @@ local function enrichEnumString(n)
   local e = LLX.Enum(pc.cls .. "." .. pc.name .. "." .. n.val)
   if e then n.lua = e end
 end
-
 function M.enrich(tree, o)
   o = o or {}
   if not M._ll then bindLL() end
   if not M._ll and o.requireLL ~= false then return tree end
   local b = scanBinds(tree)
-  -- Loop: enrich → scan new binds → re-enrich, sampai stabil
   for _ = 1, 4 do
     M.walk(tree, function(n)
       enrichMember(n, b)
       enrichCall(n, b)
     end)
-    -- Re-scan for new bindings (property returns, chained, dll)
     local added = false
     M.walk(tree, function(n)
       if n.type == "LocalStatement" then
@@ -1587,18 +1428,16 @@ function M.enrich(tree, o)
           if ne and ne.name and not b[ne.name] then
             local cls, via = inferCls(v)
             if cls then
-              b[ne.name] = { class=cls, via=via, line=ne.line }
+              b[ne.name] = { class = cls, via = via, line = ne.line }
               added = true
             end
           end
         end
       end
     end)
-    -- Callback param inference
     if inferCallbackParams(tree, b) then added = true end
     if not added then break end
   end
-  -- Enum passes
   if o.enum ~= false then
     M.walk(tree, function(n) enrichEnumExpr(n) end)
     M.walk(tree, function(n)
@@ -1614,18 +1453,15 @@ function M.enrich(tree, o)
   tree._binds = b
   return tree
 end
-
 function M.inspect(n)
   if not n then return nil end
   return n.lua
 end
-
 function M.classOf(tree, v)
   if not tree._binds then return nil end
   local b = tree._binds[v]
   return b and b.class or nil
 end
-
 function M.report(tree)
   local o = {
     nodes = 0, tagged = 0,
@@ -1638,18 +1474,18 @@ function M.report(tree)
       local k = n.lua.kind
       if k == "method" and n.lua.class then
         o.classes[n.lua.class] = true
-        o.methods[#o.methods+1] = n.lua.class .. ":" .. n.lua.name
+        o.methods[#o.methods + 1] = n.lua.class .. ":" .. n.lua.name
       elseif k == "property" and n.lua.class then
         o.classes[n.lua.class] = true
-        o.props[#o.props+1] = n.lua.class .. "." .. n.lua.name
+        o.props[#o.props + 1] = n.lua.class .. "." .. n.lua.name
       elseif k == "event" and n.lua.class then
         o.classes[n.lua.class] = true
-        o.events[#o.events+1] = n.lua.class .. "." .. n.lua.name
+        o.events[#o.events + 1] = n.lua.class .. "." .. n.lua.name
       elseif k == "call" and n.lua.cls then
         o.classes[n.lua.cls] = true
-        o.methods[#o.methods+1] = n.lua.cls .. ":" .. n.lua.name
+        o.methods[#o.methods + 1] = n.lua.cls .. ":" .. n.lua.name
       elseif k == "enum" then
-        o.enums[#o.enums+1] = n.lua.enum
+        o.enums[#o.enums + 1] = n.lua.enum
       elseif k == "class" then
         if n.lua.all then
           for _, c in ipairs(n.lua.all) do o.classes[c] = true end
@@ -1660,34 +1496,30 @@ function M.report(tree)
     end
   end)
   local cs = {}
-  for c in pairs(o.classes) do cs[#cs+1] = c end
+  for c in pairs(o.classes) do cs[#cs + 1] = c end
   table.sort(cs)
   o.classes = cs
   return o
 end
-
 function M.parse(src, o)
   local t = _parse(src)
   if o and o.enrich then M.enrich(t, o) end
   return t
 end
-
 function M.pretty(src) return M.gen(M.parse(src)) end
-
 function M.genAnnotated(t, o)
   o = o or {}
   local src = M.gen(t)
   if not o.header then return src end
   local h = { "-- === BuilderAST enriched ===" }
-  if M._ll then h[#h+1] = "-- LuaLib: bound" end
+  if M._ll then h[#h + 1] = "-- LuaLib: bound" end
   if t._binds then
     local n = 0
     for _ in pairs(t._binds) do n = n + 1 end
-    h[#h+1] = "-- Binds: " .. n
+    h[#h + 1] = "-- Binds: " .. n
   end
   return table.concat(h, "\n") .. "\n\n" .. src
 end
-
 local function fmtTag(l)
   local tag = l.kind or "?"
   local c = l.cls or l.class
@@ -1699,10 +1531,8 @@ local function fmtTag(l)
   if l.readonly then tag = tag .. " [ro]" end
   return tag
 end
-
 function M.annotate(tree)
   local res = {}
-
   local function collectTags(stmt)
     local tags = {}
     M.walk(stmt, function(n)
@@ -1711,28 +1541,24 @@ function M.annotate(tree)
         for _, ex in ipairs(tags) do
           if ex == tag then return end
         end
-        tags[#tags+1] = tag
+        tags[#tags + 1] = tag
       end
     end)
     return tags
   end
-
   local function emitStmt(s, lv, pad)
     local tags = collectTags(s)
     if #tags > 0 then
-      res[#res+1] = pad .. "-- [ " .. table.concat(tags, " | ") .. " ]"
+      res[#res + 1] = pad .. "-- [ " .. table.concat(tags, " | ") .. " ]"
     end
-    res[#res+1] = gs(s, lv)
+    res[#res + 1] = gs(s, lv)
   end
-
   local function walkBlock(blk, lv)
     if not blk then return end
     local pad = ind(lv)
     for _, s in ipairs(blk.body or {}) do
       emitStmt(s, lv, pad)
-      if s.type == "DoStatement" or s.type == "WhileStatement"
-          or s.type == "RepeatStatement" or s.type == "NumericForStatement"
-          or s.type == "GenericForStatement" then
+      if s.type == "DoStatement" or s.type == "WhileStatement" or s.type == "RepeatStatement" or s.type == "NumericForStatement" or s.type == "GenericForStatement" then
         walkBlock(s.body, lv + 1)
       elseif s.type == "IfStatement" then
         for _, cl in ipairs(s.clauses) do walkBlock(cl.body, lv + 1) end
@@ -1742,15 +1568,11 @@ function M.annotate(tree)
       end
     end
   end
-
   if tree.type == "Chunk" or tree.type == "Block" then
     walkBlock(tree, 0)
   end
   return table.concat(res, "\n")
 end
-
 function M.refreshKw() return M.init({ reloadFromLuaLib = true }) end
-
 bindLL()
-
 return M
