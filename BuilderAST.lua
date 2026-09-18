@@ -1097,7 +1097,18 @@ end
 function M.ll() return M._ll end
 
 -- ============================================================
--- LLX — Adapter ke LuaLib
+-- LLX — Adapter ke LuaLib (format API asli LuaLib)
+--   Get(token, cls)               token, class
+--   GetFullSignature(token, cls)  token, class
+--   GetEventSignature(evt, cls)   event, class
+--   GetPropertyType(cls, prop)    class, prop
+--   HasProperty(cls, prop)        class, prop
+--   HasEvent(cls, event)          class, event
+--   HasEnumItem(enum, item)       enum, item
+--   ResolveEnumFull(enum, num)    enum, numeric
+--   GetClassChain(cls)            class
+--   IsYielding(token, cls)        token, class
+--   IsPropertyReadOnly(cls, prop) class, prop
 -- ============================================================
 local LLX = {}
 
@@ -1117,6 +1128,22 @@ local function methodSet(L, cls)
   return s
 end
 
+local function eventSet(L, cls)
+  local key = "e:" .. cls
+  if MCACHE[key] then return MCACHE[key] end
+  local s = {}
+  if type(L.GetEvents) == "function" then
+    local ok, list = pcall(L.GetEvents, cls)
+    if ok and type(list) == "table" then
+      for _, v in ipairs(list) do
+        if type(v) == "string" then s[v] = true end
+      end
+    end
+  end
+  MCACHE[key] = s
+  return s
+end
+
 function LLX.Class(name)
   local L = M._ll
   if not L or not name then return nil end
@@ -1133,54 +1160,57 @@ function LLX.Method(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
   local set = methodSet(L, cls)
-  if not set[nm] then
-    -- Fallback: datatype method (Vector3, RBXScriptSignal, dll)
-    if type(L.HasDatatypeMethod) == "function" then
-      local ok, r = pcall(L.HasDatatypeMethod, cls, nm)
-      if ok and r == true then
-        return { kind="method", class=cls, name=nm, datatype=true, src="LuaLib" }
-      end
-    end
-    return nil
-  end
+  if not set[nm] then return nil end
   local sig
   if type(L.GetFullSignature) == "function" then
-    local ok, r = pcall(L.GetFullSignature, nm, cls)
+    local ok, r = pcall(L.GetFullSignature, nm, cls)   -- token, class
     if ok and type(r) == "string" then sig = r end
   end
   if not sig and type(L.GetSignature) == "function" then
     local ok, r = pcall(L.GetSignature, nm, cls)
     if ok and type(r) == "string" then sig = r end
   end
-  return { kind="method", class=cls, name=nm, sig=sig, src="LuaLib" }
+  local yielding = false
+  if type(L.IsYielding) == "function" then
+    local ok, y = pcall(L.IsYielding, nm, cls)
+    if ok then yielding = y == true end
+  end
+  return { kind="method", class=cls, name=nm, sig=sig,
+           yielding=yielding, src="LuaLib" }
 end
 
 function LLX.Prop(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
   if type(L.HasProperty) ~= "function" then return nil end
-  local ok, has = pcall(L.HasProperty, cls, nm)
+  local ok, has = pcall(L.HasProperty, cls, nm)   -- class, prop
   if not ok or has ~= true then return nil end
   local typ
   if type(L.GetPropertyType) == "function" then
     local ok2, t = pcall(L.GetPropertyType, cls, nm)
     if ok2 then typ = t end
   end
-  return { kind="property", class=cls, name=nm, ptype=typ, src="LuaLib" }
+  local ro = false
+  if type(L.IsPropertyReadOnly) == "function" then
+    local ok3, r = pcall(L.IsPropertyReadOnly, cls, nm)
+    if ok3 then ro = r == true end
+  end
+  return { kind="property", class=cls, name=nm,
+           ptype=typ, readonly=ro, src="LuaLib" }
 end
 
 function LLX.Event(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
-  if type(L.HasEvent) ~= "function" then return nil end
-  local ok, has = pcall(L.HasEvent, cls, nm)
-  if not ok or has ~= true then return nil end
+  local es = eventSet(L, cls)
+  if not es[nm] then return nil end
   local sig
   if type(L.GetEventSignature) == "function" then
-    local ok2, r = pcall(L.GetEventSignature, nm, cls)
-    if ok2 and type(r) == "string" then sig = r end
+    local ok, r = pcall(L.GetEventSignature, nm, cls)  -- event, class
+    if ok and type(r) == "string" then sig = r end
   end
-  return { kind="event", class=cls, name=nm, sig=sig, src="LuaLib" }
+  return { kind="event", class=cls, name=nm, sig=sig,
+           retType="RBXScriptSignal", src="LuaLib" }
 end
 
 function LLX.Enum(path)
@@ -1188,22 +1218,46 @@ function LLX.Enum(path)
   if not L or not path then return nil end
   local enumName, item = path:match("^([^%.]+)%.(.+)$")
   if not enumName or not item then return nil end
-  if type(L.HasEnumItem) == "function" then
-    local ok, r = pcall(L.HasEnumItem, enumName, item)
-    if ok and r == true then
-      return { kind="enum", enum=path, enumName=enumName, item=item, src="LuaLib" }
+  if type(L.HasEnumItem) ~= "function" then return nil end
+  local ok, r = pcall(L.HasEnumItem, enumName, item)  -- enum, item
+  if ok and r == true then
+    local val
+    if type(L.GetEnumValue) == "function" then
+      local ok2, v = pcall(L.GetEnumValue, enumName, item)
+      if ok2 then val = v end
     end
+    return { kind="enum", enum="Enum."..enumName.."."..item,
+             enumName=enumName, item=item, val=val, src="LuaLib" }
   end
   return nil
 end
 
 function LLX.EnumByValue(enumName, val)
   local L = M._ll
-  if not L or not enumName then return nil end
-  if type(L.ResolveEnumValue) == "function" then
-    local ok, r = pcall(L.ResolveEnumValue, enumName, val)
-    if ok and r then
-      return { kind="enum", enum=enumName, val=val, item=r, src="LuaLib" }
+  if not L or not enumName or not val then return nil end
+  if type(L.ResolveEnumFull) == "function" then
+    local ok, r = pcall(L.ResolveEnumFull, enumName, val)  -- enum, num
+    if ok and type(r) == "string" then
+      local eName, item = r:match("^Enum%.([^%.]+)%.(.+)$")
+      return { kind="enum", enum=r, enumName=eName, item=item,
+               val=val, src="LuaLib" }
+    end
+  end
+  return nil
+end
+
+function LLX.FindEnumsByValue(val)
+  local L = M._ll
+  if not L or not val then return nil end
+  if type(L.FindEnumsByValueFull) == "function" then
+    local ok, list = pcall(L.FindEnumsByValueFull, val)
+    if ok and type(list) == "table" then
+      local out = {}
+      for i, v in ipairs(list) do
+        local eName, item = v:match("^Enum%.([^%.]+)%.(.+)$")
+        out[i] = { kind="enum", enum=v, enumName=eName, item=item, src="LuaLib" }
+      end
+      return out
     end
   end
   return nil
@@ -1219,6 +1273,17 @@ function LLX.Sig(cls, nm)
   if type(L.GetSignature) == "function" then
     local ok, r = pcall(L.GetSignature, nm, cls)
     if ok and type(r) == "string" then return r end
+  end
+  return nil
+end
+
+function LLX.DatatypeMethod(dt, nm)
+  local L = M._ll
+  if not L or not dt or not nm then return nil end
+  if type(L.HasDatatypeMethod) ~= "function" then return nil end
+  local ok, has = pcall(L.HasDatatypeMethod, dt, nm)  -- datatype, method
+  if ok and has == true then
+    return { kind="method", class=dt, name=nm, datatype=true, src="LuaLib" }
   end
   return nil
 end
@@ -1250,31 +1315,34 @@ local function inferCls(e)
   end
 end
 
--- Rekursif: resolve type dari expression apa pun (support chained member)
+-- Rekursif: resolve type dari expression apa pun (chained member aware)
 local function resolveType(node, b)
   if not node then return nil end
   local t = node.type
   if t == "Name" then
     local bd = b[node.val]
-    return bd and bd.class or nil
+    if bd and bd.class then return bd.class end
+    if node.lua and node.lua.retType then return node.lua.retType end
+    return nil
   end
   if t == "CallExpression" then
     local cls = inferCls(node)
     if cls then return cls end
-    -- Method call — coba resolve return type dari LuaLib
-    -- (fallback: return nil, gak bisa infer)
     return nil
   end
   if t == "MemberExpression" then
     if node.colon then return nil end
+    if node.lua and node.lua.retType then return node.lua.retType end
     local objType = resolveType(node.object, b)
     if not objType then return nil end
-    -- Try property → dapet tipe property
     local p = LLX.Prop(objType, node.property)
-    if p and p.ptype then return p.ptype end
-    -- Try event → event return type = RBXScriptSignal
+    if p and p.ptype then
+      -- "Enum.Material" → return raw for property type (buat enum resolve)
+      -- Non-enum types → return as-is
+      return p.ptype
+    end
     local e = LLX.Event(objType, node.property)
-    if e then return "RBXScriptSignal" end
+    if e and e.retType then return e.retType end
     return nil
   end
   if t == "IndexExpression" then
@@ -1288,6 +1356,8 @@ end
 
 -- ============================================================
 -- scanBinds
+-- LocalStatement.names = { {name=..., line=...} }
+-- AssignmentStatement.targets = { NameNode, ... }
 -- ============================================================
 local function scanBinds(tree)
   local b = {}
@@ -1320,9 +1390,54 @@ end
 -- ============================================================
 -- Enrichment
 -- ============================================================
+
+-- Deteksi polos `Enum.X.Y` di AST
+local function enrichEnumExpr(n)
+  if n.type ~= "MemberExpression" then return end
+  if n.colon then return end
+  local mid = n.object
+  if not mid or mid.type ~= "MemberExpression" then return end
+  if mid.colon then return end
+  local base = mid.object
+  if not base or base.type ~= "Name" or base.val ~= "Enum" then return end
+  local e = LLX.Enum(mid.property .. "." .. n.property)
+  if e then n.lua = e end
+end
+
+-- Deteksi `property = number` yang tipenya Enum.X
+-- Contoh: part.Material = 256
+local function enrichNumToEnum(n, b)
+  if n.type ~= "AssignmentStatement" then return end
+  for i, v in ipairs(n.values) do
+    if v.type == "NumberLiteral" and type(v.val) == "number" then
+      local tg = n.targets[i]
+      if tg and tg.type == "MemberExpression" and not tg.colon then
+        local objType = resolveType(tg.object, b)
+        if objType then
+          local p = LLX.Prop(objType, tg.property)
+          if p and p.ptype then
+            local enumName = p.ptype:match("^Enum%.([%w_]+)$")
+            if enumName then
+              local e = LLX.EnumByValue(enumName, v.val)
+              if e then v.lua = e end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
 local function enrichMember(n, b)
   if n.type ~= "MemberExpression" then return end
-  -- Coba resolve type dari object (bisa Name atau MemberExpression)
+  -- Skip `Enum.X.Y`
+  if not n.colon then
+    local mid = n.object
+    if mid and mid.type == "MemberExpression" and not mid.colon then
+      local base = mid.object
+      if base and base.type == "Name" and base.val == "Enum" then return end
+    end
+  end
   local objType = resolveType(n.object, b)
   if not objType then return end
   local info
@@ -1345,11 +1460,10 @@ local function enrichCall(n, b)
   if not c or c.type ~= "MemberExpression" then return end
   local objType = resolveType(c.object, b)
   if not objType then return end
-  -- Skip kalau callee udah di-tag sebagai event
   local info = c.lua
   if info and info.kind == "event" then return end
   if not info then
-    info = LLX.Method(objType, c.property)
+    info = LLX.Method(objType, c.property) or LLX.DatatypeMethod(objType, c.property)
     if not info then return end
   end
   n.lua = {
@@ -1362,7 +1476,7 @@ local function enrichCall(n, b)
   }
 end
 
-local function enrichEnum(n)
+local function enrichEnumString(n)
   if n.type ~= "StringLiteral" or not n._pc then return end
   local pc = n._pc.lua
   if not pc or not pc.cls or not pc.name then return end
@@ -1379,7 +1493,10 @@ function M.enrich(tree, o)
     enrichMember(n, b)
     enrichCall(n, b)
   end)
+  -- Enum expression `Enum.X.Y`
   if o.enum ~= false then
+    M.walk(tree, function(n) enrichEnumExpr(n) end)
+    -- Enum literal argumen method (e.g. `SetCore("X", Enum.Y.Z)`) — pakai string
     M.walk(tree, function(n)
       if n.type == "CallExpression" then
         for _, a in ipairs(n.args) do
@@ -1387,7 +1504,9 @@ function M.enrich(tree, o)
         end
       end
     end)
-    M.walk(tree, function(n) enrichEnum(n) end)
+    M.walk(tree, function(n) enrichEnumString(n) end)
+    -- Number → enum untuk assignment property
+    M.walk(tree, function(n) enrichNumToEnum(n, b) end)
   end
   tree._binds = b
   return tree
@@ -1429,7 +1548,11 @@ function M.report(tree)
       elseif k == "enum" then
         o.enums[#o.enums+1] = n.lua.enum
       elseif k == "class" then
-        o.classes[n.lua.name] = true
+        if n.lua.all then
+          for _, c in ipairs(n.lua.all) do o.classes[c] = true end
+        else
+          o.classes[n.lua.name] = true
+        end
       end
     end
   end)
@@ -1462,17 +1585,18 @@ function M.genAnnotated(t, o)
   return table.concat(h, "\n") .. "\n\n" .. src
 end
 
--- Helper: format tag dari node.lua
 local function fmtTag(l)
   local tag = l.kind or "?"
-  if l.cls then tag = tag .. " " .. l.cls end
-  if l.class then tag = tag .. " " .. l.class end
+  local c = l.cls or l.class
+  if c then tag = tag .. " " .. c end
   if l.name then tag = tag .. ":" .. l.name end
   if l.enum then tag = tag .. " " .. l.enum end
+  if l.ptype then tag = tag .. " (" .. tostring(l.ptype) .. ")" end
+  if l.yielding then tag = tag .. " [yield]" end
+  if l.readonly then tag = tag .. " [ro]" end
   return tag
 end
 
--- Annotate: per-statement, biar posisi komentar akurat
 function M.annotate(tree)
   local res = {}
 
@@ -1490,7 +1614,6 @@ function M.annotate(tree)
     return tags
   end
 
-  -- Rekursif untuk statement bersarang (if/while/for/function)
   local function emitStmt(s, lv, pad)
     local tags = collectTags(s)
     if #tags > 0 then
@@ -1499,46 +1622,26 @@ function M.annotate(tree)
     res[#res+1] = gs(s, lv)
   end
 
-  -- Top-level + recursive walk untuk body bersarang
   local function walkBlock(blk, lv)
     if not blk then return end
     local pad = ind(lv)
     for _, s in ipairs(blk.body or {}) do
       emitStmt(s, lv, pad)
-      -- Recurse ke body anak (skip statement biasa)
-      if s.type == "DoStatement" then
-        walkBlock(s.body, lv + 1)
-      elseif s.type == "WhileStatement" then
-        walkBlock(s.body, lv + 1)
-      elseif s.type == "RepeatStatement" then
+      if s.type == "DoStatement" or s.type == "WhileStatement"
+          or s.type == "RepeatStatement" or s.type == "NumericForStatement"
+          or s.type == "GenericForStatement" then
         walkBlock(s.body, lv + 1)
       elseif s.type == "IfStatement" then
         for _, cl in ipairs(s.clauses) do walkBlock(cl.body, lv + 1) end
         if s.elseBody then walkBlock(s.elseBody, lv + 1) end
-      elseif s.type == "NumericForStatement" then
-        walkBlock(s.body, lv + 1)
-      elseif s.type == "GenericForStatement" then
-        walkBlock(s.body, lv + 1)
       elseif s.type == "FunctionDeclaration" then
         walkBlock(s.func.body, lv + 1)
       end
     end
   end
 
-  if tree.type == "Chunk" then
-    for _, s in ipairs(tree.body) do
-      emitStmt(s, 0, "")
-      if s.type == "FunctionDeclaration" then
-        walkBlock(s.func.body, 1)
-      elseif s.type == "DoStatement" or s.type == "WhileStatement"
-          or s.type == "RepeatStatement" or s.type == "NumericForStatement"
-          or s.type == "GenericForStatement" then
-        walkBlock(s.body, 1)
-      elseif s.type == "IfStatement" then
-        for _, cl in ipairs(s.clauses) do walkBlock(cl.body, 1) end
-        if s.elseBody then walkBlock(s.elseBody, 1) end
-      end
-    end
+  if tree.type == "Chunk" or tree.type == "Block" then
+    walkBlock(tree, 0)
   end
   return table.concat(res, "\n")
 end
