@@ -1097,7 +1097,7 @@ end
 function M.ll() return M._ll end
 
 -- ============================================================
--- LLX — Adapter ke LuaLib (format sesuai API asli LuaLib)
+-- LLX — Adapter ke LuaLib
 -- ============================================================
 local LLX = {}
 
@@ -1133,7 +1133,16 @@ function LLX.Method(cls, nm)
   local L = M._ll
   if not L or not cls or not nm then return nil end
   local set = methodSet(L, cls)
-  if not set[nm] then return nil end
+  if not set[nm] then
+    -- Fallback: datatype method (Vector3, RBXScriptSignal, dll)
+    if type(L.HasDatatypeMethod) == "function" then
+      local ok, r = pcall(L.HasDatatypeMethod, cls, nm)
+      if ok and r == true then
+        return { kind="method", class=cls, name=nm, datatype=true, src="LuaLib" }
+      end
+    end
+    return nil
+  end
   local sig
   if type(L.GetFullSignature) == "function" then
     local ok, r = pcall(L.GetFullSignature, nm, cls)
@@ -1222,7 +1231,7 @@ function M.resolve(cls, nm)
 end
 
 -- ============================================================
--- Binding inference
+-- Type inference
 -- ============================================================
 local function inferCls(e)
   if not e or e.type ~= "CallExpression" then return nil end
@@ -1241,10 +1250,44 @@ local function inferCls(e)
   end
 end
 
+-- Rekursif: resolve type dari expression apa pun (support chained member)
+local function resolveType(node, b)
+  if not node then return nil end
+  local t = node.type
+  if t == "Name" then
+    local bd = b[node.val]
+    return bd and bd.class or nil
+  end
+  if t == "CallExpression" then
+    local cls = inferCls(node)
+    if cls then return cls end
+    -- Method call — coba resolve return type dari LuaLib
+    -- (fallback: return nil, gak bisa infer)
+    return nil
+  end
+  if t == "MemberExpression" then
+    if node.colon then return nil end
+    local objType = resolveType(node.object, b)
+    if not objType then return nil end
+    -- Try property → dapet tipe property
+    local p = LLX.Prop(objType, node.property)
+    if p and p.ptype then return p.ptype end
+    -- Try event → event return type = RBXScriptSignal
+    local e = LLX.Event(objType, node.property)
+    if e then return "RBXScriptSignal" end
+    return nil
+  end
+  if t == "IndexExpression" then
+    return resolveType(node.object, b)
+  end
+  if t == "ParenExpression" then
+    return resolveType(node.expression, b)
+  end
+  return nil
+end
+
 -- ============================================================
 -- scanBinds
--- LocalStatement.names = { {name=..., line=...} }  (bukan Name node)
--- AssignmentStatement.targets = { NameNode, ... }  (Name node asli)
 -- ============================================================
 local function scanBinds(tree)
   local b = {}
@@ -1279,22 +1322,20 @@ end
 -- ============================================================
 local function enrichMember(n, b)
   if n.type ~= "MemberExpression" then return end
-  if not n.object or n.object.type ~= "Name" then return end
-  local bd = b[n.object.val]
-  if not bd then return end
+  -- Coba resolve type dari object (bisa Name atau MemberExpression)
+  local objType = resolveType(n.object, b)
+  if not objType then return end
   local info
   if n.colon then
-    info = LLX.Method(bd.class, n.property) or LLX.Event(bd.class, n.property)
+    info = LLX.Method(objType, n.property) or LLX.Event(objType, n.property)
   else
-    info = LLX.Prop(bd.class, n.property)
-        or LLX.Event(bd.class, n.property)
-        or LLX.Method(bd.class, n.property)
+    info = LLX.Prop(objType, n.property)
+        or LLX.Event(objType, n.property)
+        or LLX.Method(objType, n.property)
   end
   if info then
     n.lua = info
-    n.lua.owner = n.object.val
-    n.lua.via = bd.via
-    n.lua.bindLine = bd.line
+    n.lua.owner = n.object.type == "Name" and n.object.val or nil
   end
 end
 
@@ -1302,24 +1343,21 @@ local function enrichCall(n, b)
   if n.type ~= "CallExpression" then return end
   local c = n.callee
   if not c or c.type ~= "MemberExpression" then return end
-  if not c.object or c.object.type ~= "Name" then return end
-  local bd = b[c.object.val]
-  if not bd then return end
-  -- Skip kalau callee-nya udah di-tag sebagai event (biar gak duplicate)
+  local objType = resolveType(c.object, b)
+  if not objType then return end
+  -- Skip kalau callee udah di-tag sebagai event
   local info = c.lua
   if info and info.kind == "event" then return end
   if not info then
-    info = LLX.Method(bd.class, c.property)
+    info = LLX.Method(objType, c.property)
     if not info then return end
   end
   n.lua = {
     kind = "call",
-    cls  = bd.class,
+    cls  = objType,
     name = c.property,
     sig  = info.sig,
     args = n.args,
-    owner = c.object.val,
-    via  = bd.via,
     src  = "LuaLib",
   }
 end
@@ -1424,31 +1462,83 @@ function M.genAnnotated(t, o)
   return table.concat(h, "\n") .. "\n\n" .. src
 end
 
+-- Helper: format tag dari node.lua
+local function fmtTag(l)
+  local tag = l.kind or "?"
+  if l.cls then tag = tag .. " " .. l.cls end
+  if l.class then tag = tag .. " " .. l.class end
+  if l.name then tag = tag .. ":" .. l.name end
+  if l.enum then tag = tag .. " " .. l.enum end
+  return tag
+end
+
+-- Annotate: per-statement, biar posisi komentar akurat
 function M.annotate(tree)
-  local lines = {}
-  local src = M.gen(tree)
-  for l in src:gmatch("[^\n]*") do lines[#lines+1] = l end
-  local out = {}
-  M.walk(tree, function(n)
-    if n.lua and n.line then
-      local tag = n.lua.kind
-      if n.lua.cls then tag = tag .. " " .. n.lua.cls end
-      if n.lua.name then tag = tag .. ":" .. n.lua.name end
-      if n.lua.enum then tag = tag .. " " .. n.lua.enum end
-      out[n.line] = out[n.line] or {}
-      -- Dedup: skip kalau sudah ada tag identik
-      for _, existing in ipairs(out[n.line]) do
-        if existing == tag then return end
-      end
-      out[n.line][#out[n.line]+1] = tag
-    end
-  end)
   local res = {}
-  for i, l in ipairs(lines) do
-    if out[i] then
-      res[#res+1] = "-- [ " .. table.concat(out[i], " | ") .. " ]"
+
+  local function collectTags(stmt)
+    local tags = {}
+    M.walk(stmt, function(n)
+      if n.lua then
+        local tag = fmtTag(n.lua)
+        for _, ex in ipairs(tags) do
+          if ex == tag then return end
+        end
+        tags[#tags+1] = tag
+      end
+    end)
+    return tags
+  end
+
+  -- Rekursif untuk statement bersarang (if/while/for/function)
+  local function emitStmt(s, lv, pad)
+    local tags = collectTags(s)
+    if #tags > 0 then
+      res[#res+1] = pad .. "-- [ " .. table.concat(tags, " | ") .. " ]"
     end
-    res[#res+1] = l
+    res[#res+1] = gs(s, lv)
+  end
+
+  -- Top-level + recursive walk untuk body bersarang
+  local function walkBlock(blk, lv)
+    if not blk then return end
+    local pad = ind(lv)
+    for _, s in ipairs(blk.body or {}) do
+      emitStmt(s, lv, pad)
+      -- Recurse ke body anak (skip statement biasa)
+      if s.type == "DoStatement" then
+        walkBlock(s.body, lv + 1)
+      elseif s.type == "WhileStatement" then
+        walkBlock(s.body, lv + 1)
+      elseif s.type == "RepeatStatement" then
+        walkBlock(s.body, lv + 1)
+      elseif s.type == "IfStatement" then
+        for _, cl in ipairs(s.clauses) do walkBlock(cl.body, lv + 1) end
+        if s.elseBody then walkBlock(s.elseBody, lv + 1) end
+      elseif s.type == "NumericForStatement" then
+        walkBlock(s.body, lv + 1)
+      elseif s.type == "GenericForStatement" then
+        walkBlock(s.body, lv + 1)
+      elseif s.type == "FunctionDeclaration" then
+        walkBlock(s.func.body, lv + 1)
+      end
+    end
+  end
+
+  if tree.type == "Chunk" then
+    for _, s in ipairs(tree.body) do
+      emitStmt(s, 0, "")
+      if s.type == "FunctionDeclaration" then
+        walkBlock(s.func.body, 1)
+      elseif s.type == "DoStatement" or s.type == "WhileStatement"
+          or s.type == "RepeatStatement" or s.type == "NumericForStatement"
+          or s.type == "GenericForStatement" then
+        walkBlock(s.body, 1)
+      elseif s.type == "IfStatement" then
+        for _, cl in ipairs(s.clauses) do walkBlock(cl.body, 1) end
+        if s.elseBody then walkBlock(s.elseBody, 1) end
+      end
+    end
   end
   return table.concat(res, "\n")
 end
