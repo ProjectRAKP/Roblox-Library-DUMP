@@ -1,30 +1,25 @@
-local CFGBuilder = { VERSION = "1.0" }
+local CFGBuilder = { VERSION = "1.1" }
 
 local JUMP_OPS = {
-    JUMP = true, JUMPBACK = true, JUMPX = true,
-    JUMPIF = true, JUMPIFNOT = true,
-    JUMPIFEQ = true, JUMPIFNOTEQ = true,
-    JUMPIFLE = true, JUMPIFLT = true,
-    JUMPIFNOTLE = true, JUMPIFNOTLT = true,
-    FORNPREP = true, FORNLOOP = true, FORGLOOP = true,
-    FORGPREP = true, FORGPREP_INEXT = true, FORGPREP_NEXT = true,
+    JUMP=true, JUMPBACK=true, JUMPX=true,
+    JUMPIF=true, JUMPIFNOT=true, JUMPIFEQ=true, JUMPIFNOTEQ=true,
+    JUMPIFLE=true, JUMPIFLT=true, JUMPIFNOTLE=true, JUMPIFNOTLT=true,
+    FORNPREP=true, FORNLOOP=true, FORGLOOP=true,
+    FORGPREP=true, FORGPREP_INEXT=true, FORGPREP_NEXT=true,
 }
 
 local COND_OPS = {
-    JUMPIF = true, JUMPIFNOT = true,
-    JUMPIFEQ = true, JUMPIFNOTEQ = true,
-    JUMPIFLE = true, JUMPIFLT = true,
-    JUMPIFNOTLE = true, JUMPIFNOTLT = true,
-    FORNPREP = true,
+    JUMPIF=true, JUMPIFNOT=true, JUMPIFEQ=true, JUMPIFNOTEQ=true,
+    JUMPIFLE=true, JUMPIFLT=true, JUMPIFNOTLE=true, JUMPIFNOTLT=true,
+    FORNPREP=true, FORNLOOP=true, FORGLOOP=true,
 }
 
 local UNCOND_OPS = {
-    JUMP = true, JUMPBACK = true, JUMPX = true,
-    FORNLOOP = true, FORGLOOP = true,
+    JUMP=true, JUMPBACK=true, JUMPX=true,
 }
 
 local END_OPS = {
-    RETURN = true, JUMP = true, JUMPBACK = true, JUMPX = true,
+    RETURN=true, JUMP=true, JUMPBACK=true, JUMPX=true,
 }
 
 local function signExtend16(v)
@@ -48,43 +43,32 @@ local function decodeInstructions(proto, opcodes)
     local insts = {}
     local pc_word = 0
     local byte_p = 1
-
     while byte_p + 3 <= #code do
         local word = readU32(code, byte_p)
         if not word then break end
-
         local op = word % 256
         local A = math.floor(word / 256) % 256
         local B = math.floor(word / 65536) % 256
         local C = math.floor(word / 16777216) % 256
         local D = signExtend16(B + C * 256)
         local E = signExtend24(math.floor(word / 256) % 16777216)
-
         local info = opcodes[op]
         local inst = {
             pc_word = pc_word,
             byte_pc = byte_p - 1,
-            op = op,
-            A = A, B = B, C = C, D = D, E = E,
-            info = info,
-            aux = nil,
-            has_aux = false,
-            word_size = 1,
+            op = op, A = A, B = B, C = C, D = D, E = E,
+            info = info, aux = nil, has_aux = false, word_size = 1,
         }
-
         byte_p = byte_p + 4
-
         if info and info.aux and byte_p + 3 <= #code then
             inst.aux = readU32(code, byte_p)
             inst.has_aux = true
             byte_p = byte_p + 4
             inst.word_size = 2
         end
-
         insts[#insts + 1] = inst
         pc_word = pc_word + inst.word_size
     end
-
     return insts
 end
 
@@ -169,7 +153,7 @@ function CFGBuilder.build(proto, opcodes)
             local next_pc = last.pc_word + last.word_size
 
             if name == "RETURN" then
-                -- terminal
+                do end
             elseif UNCOND_OPS[name] then
                 local t = getJumpTarget(last)
                 local tb = t and block_by_start[t]
@@ -205,9 +189,8 @@ end
 
 function CFGBuilder.format(cfg)
     local out = {}
-    out[#out + 1] = ("═══ CFG: %d blocks, %d edges ═══"):format(#cfg.blocks, #cfg.edges)
+    out[#out + 1] = ("CFG: %d blocks, %d edges"):format(#cfg.blocks, #cfg.edges)
     out[#out + 1] = ""
-
     for _, b in ipairs(cfg.blocks) do
         out[#out + 1] = ("Block %d [pc %d-%d] (%d insts)"):format(
             b.id, b.start_pc, b.end_pc - 1, #b.insts)
@@ -217,12 +200,10 @@ function CFGBuilder.format(cfg)
         end
         out[#out + 1] = ""
     end
-
     out[#out + 1] = "Edges:"
     for _, e in ipairs(cfg.edges) do
         out[#out + 1] = ("  B%d -> B%d  (%s)"):format(e.from, e.to, e.kind)
     end
-
     return table.concat(out, "\n")
 end
 
