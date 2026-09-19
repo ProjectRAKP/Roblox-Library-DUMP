@@ -108,13 +108,7 @@ local function readConstant(bc, p, strings)
 end
 
 local function readProto(bc, p, version, typesVersion, strings)
-    local protoSize = nil
-    local contentStart = p
-
-    if version >= 12 then
-        protoSize, p = readLEB128(bc, p)
-        if protoSize then contentStart = p end
-    end
+    local startP = p
 
     local maxstack  = bc:byte(p); p = p + 1
     local numparams = bc:byte(p); p = p + 1
@@ -148,34 +142,30 @@ local function readProto(bc, p, version, typesVersion, strings)
     local namelen; namelen, p = readLEB128(bc, p)
     local name = bc:sub(p, p + namelen - 1)
     p = p + namelen
-
-    local hasLine = bc:byte(p); p = p + 1
-    if hasLine == 1 then
-        local _; _, p = readLEB128(bc, p)
-        p = p + sizecode
+    
+    local function isValidNextProto(offset)
+        local q = p + offset
+        if q + 5 > #bc then return offset == (#bc - p + 1) end  -- end-of-chunk ok
+        local ms = bc:byte(q)
+        local np = bc:byte(q + 1)
+        local nu = bc:byte(q + 2)
+        local va = bc:byte(q + 3)
+        local fl = bc:byte(q + 4)
+        return ms < 200 and np < 50 and nu < 200 and (va == 0 or va == 1) and fl < 4
     end
 
-    local hasDebug = bc:byte(p); p = p + 1
-    if hasDebug == 1 then
-        local sizelv; sizelv, p = readLEB128(bc, p)
-        for _ = 1, sizelv do
-            local _; _, p = readLEB128(bc, p)
-            local _; _, p = readLEB128(bc, p)
-            local nl; nl, p = readLEB128(bc, p)
-            p = p + nl
-        end
-        local sizeup; sizeup, p = readLEB128(bc, p)
-        for _ = 1, sizeup do
-            local nl; nl, p = readLEB128(bc, p)
-            p = p + nl
+    local skipAmount = nil
+    for offset = 5, math.min(40, #bc - p + 1) do
+        if isValidNextProto(offset) then
+            skipAmount = offset
+            break
         end
     end
 
-    if protoSize then
-        local protoEnd = contentStart + protoSize
-        if protoEnd <= #bc and protoEnd > contentStart then
-            p = protoEnd
-        end
+    if skipAmount then
+        p = p + skipAmount
+    else
+        p = #bc + 1
     end
 
     return {
@@ -190,7 +180,7 @@ local function readProto(bc, p, version, typesVersion, strings)
         linedefined = linedefined,
         name        = name,
     }, p
-end
+end  
 
 function BytecodeReader.parseChunk(bc)
     if type(bc) ~= "string" or #bc < 4 then
