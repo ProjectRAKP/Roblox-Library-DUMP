@@ -2,386 +2,771 @@
   "0": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "NOP"
   },
   "4": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "POWK"
   },
   "9": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MUL"
   },
   "14": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFNOT"
   },
   "18": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "CAPTURE"
   },
   "19": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "GETTABLEN"
   },
   "23": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "FORGPREP_NEXT"
   },
   "24": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "SETGLOBAL"
   },
   "28": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LENGTH"
   },
   "33": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MODK"
   },
   "38": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SUB"
   },
   "43": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIF"
   },
   "47": {
     "aux": false,
     "enc": "E",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "COVERAGE"
   },
   "48": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "SETTABLEKS"
   },
   "52": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": true,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "FASTCALL3"
   },
   "53": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "GETGLOBAL"
   },
   "57": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MINUS"
   },
   "62": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "DIVK"
   },
   "67": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "ADD"
   },
   "72": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": false,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": true,
     "name": "JUMPBACK"
   },
   "76": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": true,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "FASTCALL"
   },
   "77": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "GETTABLEKS"
   },
   "81": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "FORGPREP_INEXT"
   },
   "82": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MOVE"
   },
   "86": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "NOT"
   },
   "91": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MULK"
   },
   "96": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFNOTLT"
   },
   "100": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "FORGPREP"
   },
   "101": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": false,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMP"
   },
   "105": {
     "aux": false,
     "enc": "E",
+    "fallthrough": false,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPX"
   },
   "106": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SETTABLE"
   },
   "110": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": true,
     "name": "FORGLOOP"
   },
   "111": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LOADK"
   },
   "115": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "CONCAT"
   },
   "120": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SUBK"
   },
   "125": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFNOTLE"
   },
   "129": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": true,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "FASTCALL2K"
   },
   "130": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": false,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "RETURN"
   },
   "134": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LOADKX"
   },
   "135": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "GETTABLE"
   },
   "139": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": true,
     "name": "FORNLOOP"
   },
   "140": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LOADN"
   },
   "144": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "ORK"
   },
   "149": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "ADDK"
   },
   "154": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFNOTEQ"
   },
   "158": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": true,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "FASTCALL2"
   },
   "159": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "CALL"
   },
   "163": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "PREPVARARGS"
   },
   "164": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "GETIMPORT"
   },
   "168": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "FORNPREP"
   },
   "169": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LOADB"
   },
   "173": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "ANDK"
   },
   "178": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "POW"
   },
   "183": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFLT"
   },
   "187": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": true,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "FASTCALL1"
   },
   "188": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": true,
+    "jump": false,
+    "loop": false,
     "name": "NAMECALL"
   },
   "192": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "DUPCLOSURE"
   },
   "193": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "CLOSEUPVALS"
   },
   "197": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SETLIST"
   },
   "198": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "LOADNIL"
   },
   "202": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "OR"
   },
   "207": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "MOD"
   },
   "212": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFLE"
   },
   "216": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "DIVRK"
   },
   "217": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "NEWCLOSURE"
   },
   "221": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "GETVARARGS"
   },
   "222": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SETUPVAL"
   },
   "226": {
     "aux": false,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "DUPTABLE"
   },
   "227": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "BREAK"
   },
   "231": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "AND"
   },
   "236": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "DIV"
   },
   "241": {
     "aux": true,
     "enc": "AD",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": true,
+    "loop": false,
     "name": "JUMPIFEQ"
   },
   "245": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SUBRK"
   },
   "246": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "SETTABLEN"
   },
   "250": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "NATIVECALL"
   },
   "251": {
     "aux": false,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "GETUPVAL"
   },
   "255": {
     "aux": true,
     "enc": "ABC",
+    "fallthrough": true,
+    "fastcall": false,
+    "import": false,
+    "jump": false,
+    "loop": false,
     "name": "NEWTABLE"
   }
 }
