@@ -108,8 +108,12 @@ local function readConstant(bc, p, strings)
 end
 
 local function readProto(bc, p, version, typesVersion, strings)
+    local protoSize = nil
+    local contentStart = p
+
     if version >= 12 then
-        local _; _, p = readLEB128(bc, p)
+        protoSize, p = readLEB128(bc, p)
+        if protoSize then contentStart = p end
     end
 
     local maxstack  = bc:byte(p); p = p + 1
@@ -167,8 +171,11 @@ local function readProto(bc, p, version, typesVersion, strings)
         end
     end
 
-    if version >= 12 then
-        p = p + 4
+    if protoSize then
+        local protoEnd = contentStart + protoSize
+        if protoEnd <= #bc and protoEnd > contentStart then
+            p = protoEnd
+        end
     end
 
     return {
