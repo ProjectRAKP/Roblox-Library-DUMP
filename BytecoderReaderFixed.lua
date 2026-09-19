@@ -1,4 +1,4 @@
-local BytecodeReader = { VERSION = "1.4" }
+local BytecodeReader = { VERSION = "1.5" }
 
 local RS = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main"
 
@@ -107,9 +107,25 @@ local function readConstant(bc, p, strings)
     end
 end
 
-local function readProto(bc, p, version, typesVersion, strings)
-    local protoStart = p
+local function looksLikeProtoStart(bc, q)
+    if q > #bc then return false end
+    if q == #bc + 1 then return true end
+    if q + 5 > #bc then return false end
+    local ms = bc:byte(q)
+    local np = bc:byte(q + 1)
+    local nu = bc:byte(q + 2)
+    local va = bc:byte(q + 3)
+    local fl = bc:byte(q + 4)
+    if not ms or not np or not nu or not va or not fl then return false end
+    if ms > 200 then return false end
+    if np > 50 then return false end
+    if nu > 200 then return false end
+    if va ~= 0 and va ~= 1 then return false end
+    if fl > 4 then return false end
+    return true
+end
 
+local function readProto(bc, p, version, typesVersion, strings)
     local maxstack  = bc:byte(p); p = p + 1
     local numparams = bc:byte(p); p = p + 1
     local nups      = bc:byte(p); p = p + 1
@@ -122,6 +138,7 @@ local function readProto(bc, p, version, typesVersion, strings)
     end
 
     local sizecode; sizecode, p = readLEB128(bc, p)
+    if not sizecode then return nil, p end
     local code = bc:sub(p, p + sizecode * 4 - 1)
     p = p + sizecode * 4
 
@@ -143,36 +160,26 @@ local function readProto(bc, p, version, typesVersion, strings)
     local name = bc:sub(p, p + namelen - 1)
     p = p + namelen
 
-    local hasLine = bc:byte(p); p = p + 1
-    if hasLine == 1 then
-        p = p + 1
-        p = p + sizecode
-        p = p + 5
-    end
+    local debugStart = p
+    local bestP = nil
 
-    local hasDebug = bc:byte(p); p = p + 1
-    if hasDebug == 1 then
-        local sizelv; sizelv, p = readLEB128(bc, p)
-        for _ = 1, sizelv do
-            local _; _, p = readLEB128(bc, p)
-            local _; _, p = readLEB128(bc, p)
-            local nl; nl, p = readLEB128(bc, p)
-            p = p + nl
-        end
-        local sizeup; sizeup, p = readLEB128(bc, p)
-        for _ = 1, sizeup do
-            local nl; nl, p = readLEB128(bc, p)
-            p = p + nl
+    for tryOff = 3, math.min(80, #bc - debugStart + 2) do
+        local tryP = debugStart + tryOff
+        if looksLikeProtoStart(bc, tryP) then
+            if tryP == #bc + 1 then
+                bestP = tryP
+                break
+            end
+            local saveP = tryP
+            local probeOk = true
+            if saveP + 5 <= #bc then
+                bestP = tryP
+                break
+            end
         end
     end
 
-    if version >= 12 then
-        p = p + 4
-    end
-
-    if p > #bc + 1 then
-        p = #bc + 1
-    end
+    p = bestP or (#bc + 1)
 
     return {
         maxstack    = maxstack,
@@ -217,6 +224,8 @@ function BytecodeReader.parseChunk(bc)
     end
 
     local protoCount; protoCount, p = readLEB128(bc, p)
+    if not protoCount then return nil, "invalid protoCount" end
+
     local protos = {}
     for i = 1, protoCount do
         local proto, newp = readProto(bc, p, version, typesVersion, strings)
