@@ -81,7 +81,10 @@ local function readConstant(bc, p, strings)
     elseif t == 5 then
         local n; n, p = readLEB128(bc, p)
         local keys = {}
-        for i = 1, n do local k; k, p = readLEB128(bc, p); keys[i] = k end
+        for i = 1, n do
+            local k; k, p = readLEB128(bc, p)
+            keys[i] = k
+        end
         return { type = "table", keys = keys }, p
     elseif t == 6 then
         local idx; idx, p = readLEB128(bc, p)
@@ -169,7 +172,9 @@ local function readProto(bc, p, version, typesVersion, strings)
 end
 
 function BytecodeReader.parseChunk(bc)
-    if type(bc) ~= "string" or #bc < 4 then return nil, "invalid bytecode" end
+    if type(bc) ~= "string" or #bc < 4 then
+        return nil, "invalid bytecode"
+    end
 
     local p = 1
     local version = bc:byte(p); p = p + 1
