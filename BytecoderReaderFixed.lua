@@ -1,309 +1,302 @@
-local bit32 = bit32
-local band, bor, lshift, rshift = bit32.band, bit32.bor, bit32.lshift, bit32.rshift
+local BytecodeReader = { VERSION = "1.1" }
 
-local Meta = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/main/BytecodeDataBase.lua"
-))()
+local RS = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main"
 
-local Reader = { VERSION = "1.1" }
-
-local function u8(d, p)
-    local v = string.byte(d, p)
-    if not v then error("eof@"..p) end
-    return v, p + 1
+local function fetchMapping()
+    local ok, raw = pcall(game.HttpGet, game, RS .. "/BytecodeMapping.json")
+    if not ok then return nil end
+    local HS = game:GetService("HttpService")
+    local ok2, decoded = pcall(function() return HS:JSONDecode(raw) end)
+    if not ok2 then return nil end
+    local t = {}
+    for k, v in pairs(decoded) do t[tonumber(k)] = v end
+    return t
 end
 
-local function u32(d, p)
-    local a, b, c, e = string.byte(d, p, p + 3)
-    if not a then error("eof@"..p) end
-    return bor(a, lshift(b, 8), lshift(c, 16), lshift(e, 24)), p + 4
-end
+local OPCODES = fetchMapping()
+if not OPCODES then return nil end
 
-local function f32(d, p)
-    local ok, v = pcall(string.unpack, "<f", d:sub(p, p + 3))
-    if not ok then error("eof@"..p) end
-    return v, p + 4
-end
-
-local function f64(d, p)
-    local ok, v = pcall(string.unpack, "<d", d:sub(p, p + 7))
-    if not ok then error("eof@"..p) end
-    return v, p + 8
-end
-
-local function leb(d, p)
+local function readLEB128(bc, p)
     local r, sh = 0, 0
     while true do
-        local b = string.byte(d, p)
-        if not b then error("leb eof@"..p) end
+        local b = bc:byte(p)
+        if not b then return nil, p end
         p = p + 1
-        r = bor(r, lshift(band(b, 0x7F), sh))
-        if band(b, 0x80) == 0 then break end
+        r = r + (b % 128) * (2 ^ sh)
+        if b < 128 then break end
         sh = sh + 7
-        if sh > 63 then error("leb overflow") end
     end
     return r, p
 end
 
-local function zigzag(u)
-    local neg = band(u, 1) == 1
-    local v = rshift(u, 1)
-    if neg then v = -v - 1 end
+local function readU32(bc, p)
+    local b1, b2, b3, b4 = bc:byte(p), bc:byte(p+1), bc:byte(p+2), bc:byte(p+3)
+    if not b4 then return nil end
+    return b1 + b2*256 + b3*65536 + b4*16777216
+end
+
+local function signExtend16(v)
+    if v >= 32768 then return v - 65536 end
     return v
 end
 
-local function str(d, p)
-    local n
-    n, p = leb(d, p)
-    local s = d:sub(p, p + n - 1)
-    return s, p + n
+local function signExtend24(v)
+    if v >= 8388608 then return v - 16777216 end
+    return v
 end
 
-local function list(d, p, fn)
-    local n
-    n, p = leb(d, p)
-    local t = table.create(n)
-    for i = 1, n do
-        t[i], p = fn(d, p)
-    end
-    return t, p
-end
-
-local CT = Meta.builder.constantType
-
-local function readConst(d, p)
-    local tag
-    tag, p = u8(d, p)
-    local c = { tag = tag }
-    if tag == CT.Type_Nil then
-        c.kind = "nil"
-    elseif tag == CT.Type_Boolean then
-        local v
-        v, p = u8(d, p)
-        c.kind, c.val = "boolean", v ~= 0
-    elseif tag == CT.Type_Number then
-        c.kind = "number"
-        c.val, p = f64(d, p)
-    elseif tag == CT.Type_String then
-        c.kind = "string"
-        c.idx, p = leb(d, p)
-    elseif tag == CT.Type_Import then
-        c.kind = "import"
-        local w
-        w, p = u32(d, p)
-        c.id1 = band(w, 0xFFFF)
-        c.id2 = band(rshift(w, 16), 0xFFFF)
-    elseif tag == CT.Type_Table then
-        c.kind = "table"
-        c.keys, p = list(d, p, leb)
-    elseif tag == CT.Type_Closure then
-        c.kind = "closure"
-        c.fid, p = leb(d, p)
-    elseif tag == CT.Type_Vectorf then
-        c.kind = "vectorf"
-        c.x, p = f32(d, p)
-        c.y, p = f32(d, p)
-        c.z, p = f32(d, p)
-        c.w, p = f32(d, p)
-    elseif tag == CT.Type_Vectord then
-        c.kind = "vectord"
-        c.x, p = f64(d, p)
-        c.y, p = f64(d, p)
-        c.z, p = f64(d, p)
-        c.w, p = f64(d, p)
-    elseif tag == CT.Type_Integer then
-        c.kind = "integer"
-        local v
-        v, p = leb(d, p)
-        c.val = zigzag(v)
-    elseif tag == CT.Type_ClassShape then
-        c.kind = "classshape"
-        c.data, p = str(d, p)
-    else
-        c.kind = "unknown"
-    end
-    return c, p
-end
-
-local function s16(v) if v >= 32768 then return v - 65536 end return v end
-local function s24(v) if v >= 0x800000 then return v - 0x1000000 end return v end
-
-local function decode(word, opNames)
-    local op = band(word, 0xFF)
-    local a  = band(rshift(word, 8), 0xFF)
-    local b  = band(rshift(word, 16), 0xFF)
-    local c  = band(rshift(word, 24), 0xFF)
+local function decodeWord(w)
     return {
-        op   = op,
-        name = opNames[op] or ("OP_"..op),
-        a = a, b = b, c = c,
-        d = s16(band(rshift(word, 16), 0xFFFF)),
-        e = s24(band(rshift(word, 8), 0xFFFFFF)),
-        word = word,
+        op = w % 256,
+        A  = math.floor(w / 256) % 256,
+        B  = math.floor(w / 65536) % 256,
+        C  = math.floor(w / 16777216) % 256,
+        D  = signExtend16(math.floor(w / 65536) % 65536),
+        E  = signExtend24(math.floor(w / 256) % 16777216),
     }
 end
 
-local function readInsns(d, p, count, opNames)
-    local words = table.create(count)
-    for i = 1, count do
-        words[i], p = u32(d, p)
-    end
-    local out = {}
-    local i = 1
-    while i <= count do
-        local ins = decode(words[i], opNames)
-        if Meta.isOpLength2(ins.name) and i < count then
-            ins.aux = words[i + 1]
-            out[#out + 1] = ins
-            out[#out + 1] = decode(0, opNames)
-            i = i + 2
-        else
-            out[#out + 1] = ins
-            i = i + 1
+local function readConstant(bc, p, strings)
+    local t = bc:byte(p); p = p + 1
+    if t == 0 then
+        return { type = "nil" }, p
+    elseif t == 1 then
+        local v = bc:byte(p); p = p + 1
+        return { type = "bool", value = v ~= 0 }, p
+    elseif t == 2 then
+        local s = bc:sub(p, p + 7)
+        local num
+        if string.unpack then
+            local ok, v = pcall(string.unpack, "<d", s)
+            if ok then num = v end
         end
+        p = p + 8
+        return { type = "number", value = num }, p
+    elseif t == 3 then
+        local idx; idx, p = readLEB128(bc, p)
+        return { type = "string", value = strings[idx + 1], idx = idx }, p
+    elseif t == 4 then
+        local raw = readU32(bc, p); p = p + 4
+        return { type = "import", raw = raw }, p
+    elseif t == 5 then
+        local n; n, p = readLEB128(bc, p)
+        local keys = {}
+        for i = 1, n do local k; k, p = readLEB128(bc, p); keys[i] = k end
+        return { type = "table", keys = keys }, p
+    elseif t == 6 then
+        local idx; idx, p = readLEB128(bc, p)
+        return { type = "closure", idx = idx }, p
+    elseif t == 7 then
+        p = p + 16
+        return { type = "vector" }, p
+    else
+        return { type = "unknown", tag = t }, p
     end
-    return out, p
 end
 
-local function readFunction(d, p, typesVer, opNames)
-    local f = {}
-    f.maxstack,  p = u8(d, p)
-    f.numparams, p = u8(d, p)
-    f.nups,      p = u8(d, p)
-    local va
-    va, p = u8(d, p)
-    f.isVararg = va ~= 0
-    f.flags, p = u8(d, p)
-
-    if typesVer >= 1 then
-        local sz
-        sz, p = leb(d, p)
-        f.typeinfo = sz > 0 and d:sub(p, p + sz - 1) or nil
-        p = p + sz
+local function readProto(bc, p, version, typesVersion, strings)
+    if version >= 12 then
+        local _; _, p = readLEB128(bc, p)
     end
 
-    local codeN
-    codeN, p = leb(d, p)
-    f.code, p = readInsns(d, p, codeN, opNames)
+    local maxstack  = bc:byte(p); p = p + 1
+    local numparams = bc:byte(p); p = p + 1
+    local nups      = bc:byte(p); p = p + 1
+    local isvararg  = bc:byte(p); p = p + 1
+    if version >= 4 then p = p + 1 end
 
-    f.constants, p = list(d, p, readConst)
-    f.protos,    p = list(d, p, leb)
+    if typesVersion and typesVersion >= 2 then
+        local ts; ts, p = readLEB128(bc, p)
+        p = p + ts
+    end
 
-    f.line, p = leb(d, p)
-    f.nameIdx, p = leb(d, p)
+    local sizecode; sizecode, p = readLEB128(bc, p)
+    local code = bc:sub(p, p + sizecode * 4 - 1)
+    p = p + sizecode * 4
 
-    local hasDbg
-    hasDbg, p = u8(d, p)
-    if hasDbg ~= 0 then
-        f.linegap, p = u8(d, p)
-        f.lineinfo, p = list(d, p, u8)
-        local m
-        m, p = leb(d, p)
-        f.abslineinfo = table.create(m)
-        for i = 1, m do
-            local pc, ln
-            pc, p = leb(d, p)
-            ln, p = leb(d, p)
-            f.abslineinfo[i] = { pc = pc, line = ln }
+    local sizek; sizek, p = readLEB128(bc, p)
+    local constants = {}
+    for i = 1, sizek do
+        constants[i], p = readConstant(bc, p, strings)
+    end
+
+    local sizep; sizep, p = readLEB128(bc, p)
+    local subprotos = {}
+    for i = 1, sizep do
+        subprotos[i], p = readLEB128(bc, p)
+    end
+
+    local linedefined; linedefined, p = readLEB128(bc, p)
+
+    local namelen; namelen, p = readLEB128(bc, p)
+    local name = bc:sub(p, p + namelen - 1)
+    p = p + namelen
+
+    local hasLine = bc:byte(p); p = p + 1
+    if hasLine == 1 then
+        local _; _, p = readLEB128(bc, p)
+        p = p + sizecode
+    end
+
+    local hasDebug = bc:byte(p); p = p + 1
+    if hasDebug == 1 then
+        local sizelv; sizelv, p = readLEB128(bc, p)
+        for _ = 1, sizelv do
+            local _; _, p = readLEB128(bc, p)
+            local _; _, p = readLEB128(bc, p)
+            local nl; nl, p = readLEB128(bc, p)
+            p = p + nl
+        end
+        local sizeup; sizeup, p = readLEB128(bc, p)
+        for _ = 1, sizeup do
+            local nl; nl, p = readLEB128(bc, p)
+            p = p + nl
         end
     end
-
-    local hasLoc
-    hasLoc, p = u8(d, p)
-    if hasLoc ~= 0 then
-        local n
-        n, p = leb(d, p)
-        f.locvars = table.create(n)
-        for i = 1, n do
-            local ni, sp, ep, rg
-            ni, p = leb(d, p)
-            sp, p = leb(d, p)
-            ep, p = leb(d, p)
-            rg, p = u8(d, p)
-            f.locvars[i] = { nameIdx = ni, start = sp, stop = ep, reg = rg }
-        end
-        f.upvalues, p = list(d, p, leb)
-    end
-
-    return f, p
-end
-
-local function readChunk(d, p, version, opNames)
-    local typesVer = 0
-    if version >= 4 then
-        typesVer, p = u8(d, p)
-        if typesVer > 3 then error("types version "..typesVer) end
-    end
-
-    local strings
-    strings, p = list(d, p, str)
-
-    if typesVer == 3 then
-        local n
-        n, p = leb(d, p)
-        for i = 1, n do
-            local _, np = str(d, p)
-            p = np
-        end
-    end
-
-    local protos
-    protos, p = list(d, p, function(dd, pp)
-        return readFunction(dd, pp, typesVer, opNames)
-    end)
-
-    local main
-    main, p = leb(d, p)
 
     return {
-        version = version,
-        typesVersion = typesVer,
-        strings = strings,
-        protos = protos,
-        main = main,
+        maxstack    = maxstack,
+        numparams   = numparams,
+        nups        = nups,
+        isvararg    = isvararg,
+        sizecode    = sizecode,
+        code        = code,
+        constants   = constants,
+        subprotos   = subprotos,
+        linedefined = linedefined,
+        name        = name,
     }, p
 end
 
-function Reader.deserialize(bc, opNames)
-    if type(bc) ~= "string" or #bc == 0 then
-        error("empty bytecode")
-    end
-    opNames = opNames or {}
-    local p = 1
-    local version
-    version, p = u8(bc, p)
-    if version == 0 then error("bytecode error marker") end
-    if version < 3 or version > 14 then
-        error("unsupported bytecode version "..version)
-    end
-    local chunk, _ = readChunk(bc, p, version, opNames)
-    return chunk
-end
+function BytecodeReader.parseChunk(bc)
+    if type(bc) ~= "string" or #bc < 4 then return nil, "invalid bytecode" end
 
-function Reader.dump(bc, opcodeMap)
-    local names = {}
-    for name, num in pairs(opcodeMap or {}) do
-        names[num] = name
+    local p = 1
+    local version = bc:byte(p); p = p + 1
+    local typesVersion = nil
+    if version >= 4 then
+        typesVersion = bc:byte(p); p = p + 1
     end
-    local data = Reader.deserialize(bc, names)
-    local out = {}
-    out[#out + 1] = "version: " .. data.version
-    out[#out + 1] = "typesVersion: " .. data.typesVersion
-    out[#out + 1] = "strings: " .. #data.strings
-    out[#out + 1] = "protos: " .. #data.protos
-    out[#out + 1] = "main: " .. data.main
-    for i, pr in ipairs(data.protos) do
-        out[#out + 1] = ""
-        out[#out + 1] = ("proto[%d] name=%s params=%d stack=%d nups=%d vararg=%s"):format(
-            i, data.strings[pr.nameIdx + 1] or "?",
-            pr.numparams, pr.maxstack, pr.nups, tostring(pr.isVararg))
-        for j, ins in ipairs(pr.code) do
-            local aux = ins.aux and (" aux="..ins.aux) or ""
-            out[#out + 1] = ("  [%d] %s a=%d b=%d c=%d d=%d%s"):format(
-                j, ins.name, ins.a, ins.b, ins.c, ins.d, aux)
+
+    local strCount; strCount, p = readLEB128(bc, p)
+    local strings = {}
+    for i = 1, strCount do
+        local len; len, p = readLEB128(bc, p)
+        strings[i] = bc:sub(p, p + len - 1)
+        p = p + len
+    end
+
+    if version >= 3 then
+        local udCount; udCount, p = readLEB128(bc, p)
+        for i = 1, udCount do
+            local len; len, p = readLEB128(bc, p)
+            p = p + len
         end
     end
+
+    local protoCount; protoCount, p = readLEB128(bc, p)
+    local protos = {}
+    for i = 1, protoCount do
+        local proto, newp = readProto(bc, p, version, typesVersion, strings)
+        if not proto then break end
+        protos[i] = proto
+        p = newp
+    end
+
+    return {
+        version      = version,
+        typesVersion = typesVersion,
+        strings      = strings,
+        protos       = protos,
+    }
+end
+
+local function formatOperand(inst, info)
+    if info.enc == "ABC" then
+        return string.format("%d %d %d", inst.A, inst.B, inst.C)
+    elseif info.enc == "AD" then
+        return string.format("%d %d", inst.A, inst.D)
+    elseif info.enc == "E" then
+        return tostring(inst.E)
+    end
+    return ""
+end
+
+function BytecodeReader.disassemble(proto)
+    local code = proto.code
+    local out = {}
+    local idx = 0
+    local p = 1
+
+    while p + 3 <= #code do
+        local w = readU32(code, p)
+        local inst = decodeWord(w)
+        local info = OPCODES[inst.op]
+
+        local line
+        if not info then
+            line = string.format("%04d  UNKNOWN_0x%02X  raw=0x%08X", idx, inst.op, w)
+        else
+            local args = formatOperand(inst, info)
+            line = string.format("%04d  %-14s %s", idx, info.name, args)
+        end
+
+        p = p + 4
+        if info and info.aux and p + 3 <= #code then
+            local aux = readU32(code, p)
+            line = line .. string.format("  AUX=0x%08X", aux)
+            p = p + 4
+        end
+
+        idx = idx + 1
+        out[#out + 1] = line
+    end
+
     return table.concat(out, "\n")
 end
 
-return Reader
+local function protoHeader(idx, proto)
+    return string.format("─── Proto %d [%s] stack=%d params=%d ups=%d vararg=%d code=%d ───",
+        idx, proto.name ~= "" and proto.name or "?",
+        proto.maxstack, proto.numparams, proto.nups, proto.isvararg, proto.sizecode)
+end
+
+function BytecodeReader.dump(bc)
+    local chunk, err = BytecodeReader.parseChunk(bc)
+    if not chunk then return "-- parse error: " .. tostring(err) end
+
+    local out = {}
+    out[#out + 1] = string.format("v%d types v%s | %d strings | %d protos",
+        chunk.version, tostring(chunk.typesVersion),
+        #chunk.strings, #chunk.protos)
+    out[#out + 1] = ""
+
+    for i, proto in ipairs(chunk.protos) do
+        out[#out + 1] = protoHeader(i, proto)
+        out[#out + 1] = BytecodeReader.disassemble(proto)
+        out[#out + 1] = ""
+    end
+
+    return table.concat(out, "\n")
+end
+
+function BytecodeReader.dumpScript(script)
+    local ok, bc = pcall(getscriptbytecode, script)
+    if not ok or type(bc) ~= "string" then
+        return "-- getscriptbytecode failed: " .. tostring(bc)
+    end
+    return BytecodeReader.dump(bc)
+end
+
+function BytecodeReader.dumpSource(src)
+    local fn = loadstring(src)
+    if not fn then return "-- compile failed" end
+    local ok, bc = pcall(getfunctionbytecode, fn)
+    if not ok or type(bc) ~= "string" then return "-- bytecode failed" end
+    return BytecodeReader.dump(bc)
+end
+
+local _genv = (type(getgenv) == "function" and getgenv()) or _G
+_genv.BytecodeReader = BytecodeReader
+
+return BytecodeReader
