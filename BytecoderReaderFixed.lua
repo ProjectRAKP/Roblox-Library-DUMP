@@ -301,6 +301,10 @@ function BytecodeReader.dumpSource(src)
     return BytecodeReader.dump(bc)
 end
 
+function BytecodeReader.getOpcodeTable()
+    return OPCODES
+end
+
 local _genv = (type(getgenv) == "function" and getgenv()) or _G
 _genv.BytecodeReader = BytecodeReader
 
