@@ -1,4 +1,4 @@
-local BytecodeReader = { VERSION = "1.2" }
+local BytecodeReader = { VERSION = "1.3" }
 
 local RS = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main"
 
