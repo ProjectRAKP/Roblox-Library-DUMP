@@ -1,4 +1,4 @@
-local BytecodeReader = { VERSION = "1.1" }
+local BytecodeReader = { VERSION = "1.2" }
 
 local RS = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main"
 
@@ -167,6 +167,10 @@ local function readProto(bc, p, version, typesVersion, strings)
         end
     end
 
+    if version >= 12 then
+        p = p + 4
+    end
+
     return {
         maxstack    = maxstack,
         numparams   = numparams,
@@ -213,7 +217,7 @@ function BytecodeReader.parseChunk(bc)
     local protos = {}
     for i = 1, protoCount do
         local proto, newp = readProto(bc, p, version, typesVersion, strings)
-        if not proto then break end
+        if not proto or not newp then break end
         protos[i] = proto
         p = newp
     end
@@ -245,6 +249,7 @@ function BytecodeReader.disassemble(proto)
 
     while p + 3 <= #code do
         local w = readU32(code, p)
+        if not w then break end
         local inst = decodeWord(w)
         local info = OPCODES[inst.op]
 
