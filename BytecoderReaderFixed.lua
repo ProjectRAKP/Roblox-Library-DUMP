@@ -73,12 +73,22 @@ local function readConstant(bc, p, strings)
         p = p + 8
         return { type = "number", value = num }, p
     elseif t == 3 then
+        local lo, hi = readU32(bc, p), readU32(bc, p + 4)
+        p = p + 8
+        return { type = "integer", lo = lo, hi = hi }, p
+    elseif t == 4 then
+        p = p + 16
+        return { type = "vectorf" }, p
+    elseif t == 5 then
+        p = p + 32
+        return { type = "vectord" }, p
+    elseif t == 6 then
         local idx; idx, p = readLEB128(bc, p)
         return { type = "string", value = strings[idx + 1], idx = idx }, p
-    elseif t == 4 then
+    elseif t == 7 then
         local raw = readU32(bc, p); p = p + 4
         return { type = "import", raw = raw }, p
-    elseif t == 5 then
+    elseif t == 8 then
         local n; n, p = readLEB128(bc, p)
         local keys = {}
         for i = 1, n do
@@ -86,12 +96,12 @@ local function readConstant(bc, p, strings)
             keys[i] = k
         end
         return { type = "table", keys = keys }, p
-    elseif t == 6 then
+    elseif t == 9 then
         local idx; idx, p = readLEB128(bc, p)
         return { type = "closure", idx = idx }, p
-    elseif t == 7 then
-        p = p + 16
-        return { type = "vector" }, p
+    elseif t == 10 then
+        local idx; idx, p = readLEB128(bc, p)
+        return { type = "classshape", idx = idx }, p
     else
         return { type = "unknown", tag = t }, p
     end
