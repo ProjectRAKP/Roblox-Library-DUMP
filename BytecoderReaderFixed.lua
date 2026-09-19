@@ -1,4 +1,4 @@
-local BytecodeReader = { VERSION = "1.3" }
+local BytecodeReader = { VERSION = "1.4" }
 
 local RS = "https://raw.githubusercontent.com/ProjectRAKP/Roblox-Library-DUMP/refs/heads/main"
 
@@ -108,7 +108,7 @@ local function readConstant(bc, p, strings)
 end
 
 local function readProto(bc, p, version, typesVersion, strings)
-    local startP = p
+    local protoStart = p
 
     local maxstack  = bc:byte(p); p = p + 1
     local numparams = bc:byte(p); p = p + 1
@@ -142,29 +142,35 @@ local function readProto(bc, p, version, typesVersion, strings)
     local namelen; namelen, p = readLEB128(bc, p)
     local name = bc:sub(p, p + namelen - 1)
     p = p + namelen
-    
-    local function isValidNextProto(offset)
-        local q = p + offset
-        if q + 5 > #bc then return offset == (#bc - p + 1) end  -- end-of-chunk ok
-        local ms = bc:byte(q)
-        local np = bc:byte(q + 1)
-        local nu = bc:byte(q + 2)
-        local va = bc:byte(q + 3)
-        local fl = bc:byte(q + 4)
-        return ms < 200 and np < 50 and nu < 200 and (va == 0 or va == 1) and fl < 4
+
+    local hasLine = bc:byte(p); p = p + 1
+    if hasLine == 1 then
+        p = p + 1
+        p = p + sizecode
+        p = p + 5
     end
 
-    local skipAmount = nil
-    for offset = 5, math.min(40, #bc - p + 1) do
-        if isValidNextProto(offset) then
-            skipAmount = offset
-            break
+    local hasDebug = bc:byte(p); p = p + 1
+    if hasDebug == 1 then
+        local sizelv; sizelv, p = readLEB128(bc, p)
+        for _ = 1, sizelv do
+            local _; _, p = readLEB128(bc, p)
+            local _; _, p = readLEB128(bc, p)
+            local nl; nl, p = readLEB128(bc, p)
+            p = p + nl
+        end
+        local sizeup; sizeup, p = readLEB128(bc, p)
+        for _ = 1, sizeup do
+            local nl; nl, p = readLEB128(bc, p)
+            p = p + nl
         end
     end
 
-    if skipAmount then
-        p = p + skipAmount
-    else
+    if version >= 12 then
+        p = p + 4
+    end
+
+    if p > #bc + 1 then
         p = #bc + 1
     end
 
@@ -180,7 +186,7 @@ local function readProto(bc, p, version, typesVersion, strings)
         linedefined = linedefined,
         name        = name,
     }, p
-end  
+end
 
 function BytecodeReader.parseChunk(bc)
     if type(bc) ~= "string" or #bc < 4 then
@@ -214,7 +220,8 @@ function BytecodeReader.parseChunk(bc)
     local protos = {}
     for i = 1, protoCount do
         local proto, newp = readProto(bc, p, version, typesVersion, strings)
-        if not proto or not newp then break end
+        if not proto then break end
+        if not newp or newp <= p or newp > #bc + 1 then break end
         protos[i] = proto
         p = newp
     end
